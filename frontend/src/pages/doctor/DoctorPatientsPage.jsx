@@ -1,0 +1,208 @@
+import React, { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import * as Lucide from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "../../components/ui/Dialog";
+import { Input } from "../../components/ui/Input";
+import { Button } from "../../components/ui/Button";
+import { cn } from "../../lib/utils";
+import patientsData from "../../data/doctorPatients.json";
+
+const DoctorPatientsPage = () => {
+  const navigate = useNavigate();
+  const [query, setQuery] = useState("");
+  const [selectedPatient, setSelectedPatient] = useState(null);
+
+  const filtered = patientsData.filter(
+    (p) =>
+      p.name.toLowerCase().includes(query.toLowerCase()) ||
+      p.diagnosis.toLowerCase().includes(query.toLowerCase())
+  );
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-white mb-1">Patient Records</h2>
+        <p className="text-gray-500">View and manage your consultation history.</p>
+      </div>
+
+      {/* Search */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="relative"
+      >
+        <Lucide.Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search by patient name or diagnosis..."
+          className="pl-11 bg-white/5 border-white/10 text-white placeholder:text-gray-600 h-12 focus:ring-cyan-500/30"
+        />
+      </motion.div>
+
+      {/* Patient List */}
+      <div className="space-y-3">
+        <AnimatePresence mode="popLayout">
+          {filtered.length > 0 ? (
+            filtered.map((patient, idx) => (
+              <motion.div
+                key={patient.id}
+                layout
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.97 }}
+                transition={{ delay: idx * 0.05 }}
+                className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-wrap items-center gap-4 hover:border-cyan-500/20 transition-all"
+              >
+                {/* Left: Avatar + name */}
+                <div className="flex items-center gap-3 min-w-[160px]">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                    {patient.initials}
+                  </div>
+                  <div>
+                    <p className="text-white font-semibold text-sm">{patient.name}</p>
+                    <p className="text-gray-500 text-xs">
+                      {patient.age} yrs · {patient.gender}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Center: Visit info */}
+                <div className="flex items-center gap-3 flex-wrap flex-1">
+                  <span className="text-xs text-gray-500 flex items-center gap-1 bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
+                    <Lucide.Calendar className="w-3 h-3" />
+                    {patient.lastVisit}
+                  </span>
+                  <span className="bg-amber-500/15 text-amber-400 border border-amber-500/20 text-xs font-medium px-3 py-1.5 rounded-full">
+                    {patient.diagnosis}
+                  </span>
+                </div>
+
+                {/* Right: Duration + Rx + button */}
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className="text-gray-500 text-xs flex items-center gap-1 hidden sm:flex">
+                    <Lucide.Clock className="w-3 h-3" />
+                    {patient.consultationDuration}
+                  </span>
+                  <span
+                    className={cn(
+                      "text-xs font-semibold px-3 py-1.5 rounded-full border",
+                      patient.prescriptionIssued
+                        ? "bg-green-500/15 text-green-400 border-green-500/20"
+                        : "bg-gray-500/15 text-gray-400 border-gray-500/20"
+                    )}
+                  >
+                    {patient.prescriptionIssued ? "Rx Issued" : "No Rx"}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedPatient(patient)}
+                    className="bg-white/5 border-white/10 text-white hover:bg-white/10 text-xs h-9 px-4"
+                  >
+                    View Details
+                  </Button>
+                </div>
+              </motion.div>
+            ))
+          ) : (
+            <motion.div
+              key="empty"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex flex-col items-center justify-center py-20 text-center bg-white/[0.02] border border-white/5 rounded-2xl"
+            >
+              <Lucide.SearchX className="w-12 h-12 text-gray-600 mb-4" />
+              <p className="text-gray-400 font-medium">No patients found matching</p>
+              <p className="text-gray-600 text-sm mt-1">"{query}"</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Detail Dialog */}
+      <Dialog open={!!selectedPatient} onOpenChange={(open) => !open && setSelectedPatient(null)}>
+        <DialogContent className="bg-[#0D1526] border border-white/10 text-white max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                {selectedPatient?.initials}
+              </div>
+              <div>
+                <p className="text-white font-semibold">{selectedPatient?.name}</p>
+                <p className="text-gray-500 text-xs font-normal">
+                  {selectedPatient?.age} yrs · {selectedPatient?.gender}
+                </p>
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+
+          {selectedPatient && (
+            <div className="space-y-5 mt-2">
+              {/* Key Info */}
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="bg-white/5 rounded-xl p-3">
+                  <p className="text-gray-500 text-xs mb-1">Last Visit</p>
+                  <p className="text-white font-medium">{selectedPatient.lastVisit}</p>
+                </div>
+                <div className="bg-white/5 rounded-xl p-3">
+                  <p className="text-gray-500 text-xs mb-1">Duration</p>
+                  <p className="text-white font-medium">{selectedPatient.consultationDuration}</p>
+                </div>
+              </div>
+
+              {/* Diagnosis */}
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
+                <p className="text-xs text-amber-400/70 uppercase tracking-wider mb-1">Diagnosis</p>
+                <p className="text-amber-300 font-semibold">{selectedPatient.diagnosis}</p>
+              </div>
+
+              {/* Notes */}
+              <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Clinical Notes</p>
+                <p className="text-gray-300 text-sm leading-relaxed">{selectedPatient.notes}</p>
+              </div>
+
+              {/* Prescription status */}
+              <div className="flex items-center gap-2">
+                {selectedPatient.prescriptionIssued ? (
+                  <span className="flex items-center gap-2 bg-green-500/15 text-green-400 border border-green-500/20 text-xs font-semibold px-3 py-1.5 rounded-full">
+                    <Lucide.CheckCircle2 className="w-3 h-3" />
+                    Prescription Issued
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2 bg-gray-500/15 text-gray-400 border border-gray-500/20 text-xs font-semibold px-3 py-1.5 rounded-full">
+                    <Lucide.XCircle className="w-3 h-3" />
+                    No Prescription Issued
+                  </span>
+                )}
+              </div>
+
+              {/* Actions */}
+              <Button
+                onClick={() => {
+                  setSelectedPatient(null);
+                  navigate(
+                    `/doctor/prescriptions/new?patient=${encodeURIComponent(selectedPatient.name)}`
+                  );
+                }}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white border-none h-11 font-semibold"
+              >
+                <Lucide.FilePlus className="w-4 h-4 mr-2" />
+                Issue New Prescription
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+export default DoctorPatientsPage;

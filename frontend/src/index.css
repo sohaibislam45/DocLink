@@ -1,0 +1,89 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-primary: 248 250 252;
+  --bg-secondary: 255 255 255;
+  --bg-tertiary: 241 245 249;
+  --text-primary: 15 23 42;
+  --text-secondary: 71 85 105;
+  --border: 226 232 240;
+  --accent-primary: 16 185 129;
+  --accent-secondary: 52 211, 153;
+}
+
+.dark {
+  --bg-primary: 10 15 30;
+  --bg-secondary: 13 21 38;
+  --bg-tertiary: 17 29 53;
+  --text-primary: 240 244 255;
+  --text-secondary: 139 159 196;
+  --border: 30 41 59;
+  --accent-primary: 16 185 129;
+  --accent-secondary: 52 211 153;
+}
+
+@layer base {
+  body {
+    background-color: rgb(var(--bg-primary));
+    color: rgb(var(--text-primary));
+    @apply font-sans antialiased transition-colors duration-300;
+    line-height: 1.7;
+    margin: 0;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-background-secondary border border-border rounded-xl shadow-sm hover:shadow-md transition-shadow duration-300;
+  }
+
+  .btn-primary {
+    @apply bg-accent-primary hover:brightness-110 text-white px-6 py-2 rounded-lg transition-all duration-300 shadow-md shadow-accent-primary/20;
+  }
+
+  .btn-ghost {
+    @apply bg-transparent hover:bg-background-tertiary text-text-primary px-6 py-2 rounded-lg transition-all duration-300 border border-border;
+  }
+
+  .nav-link {
+    @apply text-text-secondary hover:text-accent-primary transition-colors duration-200 text-sm font-medium;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background-color: rgb(var(--bg-primary));
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: rgb(var(--bg-tertiary));
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgb(var(--accent-primary));
+}
+
+/* Fix compatibility warnings */
+button,
+input:where([type='button']),
+input:where([type='reset']),
+input:where([type='submit']) {
+  appearance: button;
+}
+
+[type='search'] {
+  appearance: textfield;
+}
