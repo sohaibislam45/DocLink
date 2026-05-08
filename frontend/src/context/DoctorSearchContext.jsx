@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { fetchDoctors } from '../api/doctors';
 
 const DoctorSearchContext = createContext();
@@ -12,18 +13,27 @@ export const useDoctorSearch = () => {
 };
 
 export const DoctorSearchProvider = ({ children }) => {
+  const location = useLocation();
+  const initialSpecialty = location.state?.specialty || 'All';
+
   const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('relevance');
   const [filters, setFilters] = useState({
-    specialty: 'All',
+    specialty: initialSpecialty,
     rating: 0,
     priceRange: [0, 1000],
     availability: null,
     gender: 'All'
   });
+
+  useEffect(() => {
+    if (location.state?.specialty && location.state.specialty !== filters.specialty) {
+      setFilters(prev => ({ ...prev, specialty: location.state.specialty }));
+    }
+  }, [location.state?.specialty]);
 
   const loadDoctors = useCallback(async () => {
     try {

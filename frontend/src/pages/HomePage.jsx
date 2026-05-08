@@ -6,6 +6,7 @@ import FeaturedDoctorsSection from '../components/Doctors/FeaturedDoctorsSection
 import HowItWorksSection from '../components/HowItWorks/HowItWorksSection';
 import TestimonialSection from '../components/Testimonial/TestimonialSection';
 import CtaSection from '../components/Cta/CtaSection';
+import ScrollToTopButton from '../components/ui/ScrollToTopButton';
 
 const HomePage = () => {
   return (
@@ -17,6 +18,7 @@ const HomePage = () => {
       <HowItWorksSection />
       <TestimonialSection />
       <CtaSection />
+      <ScrollToTopButton />
     </div>
   );
 };

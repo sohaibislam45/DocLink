@@ -13,6 +13,7 @@ const doctorSchema = new mongoose.Schema({
   reviewCount: { type: Number, default: 0 },
   fee: { type: Number, required: true },
   initials: { type: String, required: true },
+  avatar: { type: String },
   gender: { type: String, enum: ["male", "female"] },
   isOnline: { type: Boolean, default: false },
   queueCount: { type: Number, default: 0 },

@@ -1,10 +1,12 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import * as LucideIcons from 'lucide-react';
 import { Card, CardContent } from '../ui/Card';
 import { fetchSpecialties } from '../../api/common';
 
 const SpecialtiesSection = () => {
+  const navigate = useNavigate();
   const [specialtiesData, setSpecialtiesData] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
 
@@ -80,7 +82,10 @@ const SpecialtiesSection = () => {
                 variants={itemVariants}
                 whileHover={{ y: -10, transition: { duration: 0.2 } }}
               >
-                <Card className="group cursor-pointer hover:border-accent-primary/50 transition-all duration-300 h-full">
+                <Card 
+                  className="group cursor-pointer hover:border-accent-primary/50 transition-all duration-300 h-full"
+                  onClick={() => navigate('/doctors', { state: { specialty: spec.name } })}
+                >
                   <CardContent className="p-8 flex flex-col items-center text-center">
                     <div className="w-16 h-16 rounded-2xl bg-background-tertiary flex items-center justify-center mb-6 group-hover:bg-accent-primary/20 transition-colors duration-300">
                       <IconComponent className="w-8 h-8 text-accent-primary group-hover:scale-110 transition-transform duration-300" />
