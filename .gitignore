@@ -15,3 +15,4 @@ backend/dist/
 # Misc
 .DS_Store
 *.log
+.vite/
