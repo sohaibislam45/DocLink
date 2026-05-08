@@ -1,13 +1,12 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { useDoctorProfile } from '../../../context/DoctorProfileContext';
-import * as Lucide from 'lucide-react';
-import experienceData from '../../../data/experience.json';
+import { motion } from "framer-motion";
+import { useDoctorProfile } from "../../../context/DoctorProfileContext";
+import * as Lucide from "lucide-react";
 
 const DoctorExperience = () => {
   const { doctor } = useDoctorProfile();
 
-  const experiences = experienceData[doctor.id] || experienceData.default;
+  // Experiences are now part of the doctor object from the database
+  const experiences = doctor?.experiences || [];
 
   return (
     <motion.div

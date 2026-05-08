@@ -8,7 +8,7 @@ const getToken = async () => {
   return token;
 };
 
-export const fetchMyProfile = async () => {
+export const fetchPatientProfile = async () => {
   const token = await getToken();
   const res = await fetch(`${BASE}/api/patients/me`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -31,7 +31,7 @@ export const createOrFetchPatient = async (userData) => {
   return res.json();
 };
 
-export const updateMyProfile = async (data) => {
+export const updatePatientProfile = async (data) => {
   const token = await getToken();
   const res = await fetch(`${BASE}/api/patients/me`, {
     method: "PATCH",
@@ -42,5 +42,11 @@ export const updateMyProfile = async (data) => {
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error("Failed to update profile");
+  return res.json();
+};
+
+export const fetchPatients = async () => {
+  const res = await fetch(`${BASE}/api/consultations/my`); // Temporary mapping to history
+  if (!res.ok) throw new Error("Failed to fetch patients");
   return res.json();
 };

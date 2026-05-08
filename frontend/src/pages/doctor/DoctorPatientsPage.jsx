@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import * as Lucide from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useDoctorProfile } from "../../context/DoctorProfileContext";
 import {
   Dialog,
   DialogContent,
@@ -11,14 +12,42 @@ import {
 import { Input } from "../../components/ui/Input";
 import { Button } from "../../components/ui/Button";
 import { cn } from "../../lib/utils";
-import patientsData from "../../data/doctorPatients.json";
+import { fetchPatients } from "../../api/patients";
 
 const DoctorPatientsPage = () => {
   const navigate = useNavigate();
+  const { doctor } = useDoctorProfile();
   const [query, setQuery] = useState("");
   const [selectedPatient, setSelectedPatient] = useState(null);
+  const [patients, setPatients] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [specialties, setSpecialties] = useState([]);
 
-  const filtered = patientsData.filter(
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        // Replace with actual API calls
+        const patientsData = await fetchPatients();
+        setPatients(patientsData || []);
+        
+        // Mocking fetching specialties from API
+        setSpecialties([
+          { id: 1, name: "Cardiology" },
+          { id: 2, name: "Dermatology" },
+          { id: 3, name: "Neurology" },
+          { id: 4, name: "Pediatrics" },
+          { id: 5, name: "Psychiatry" },
+          { id: 6, name: "Medicine" }
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, []);
+
+  const filtered = patients.filter(
     (p) =>
       p.name.toLowerCase().includes(query.toLowerCase()) ||
       p.diagnosis.toLowerCase().includes(query.toLowerCase())

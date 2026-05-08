@@ -1,10 +1,22 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import * as LucideIcons from 'lucide-react';
-import specialtiesData from '../../data/specialties.json';
 import { Card, CardContent } from '../ui/Card';
+import { fetchSpecialties } from '../../api/common';
 
 const SpecialtiesSection = () => {
+  const [specialtiesData, setSpecialtiesData] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const getSpecialties = async () => {
+      const data = await fetchSpecialties();
+      setSpecialtiesData(data || []);
+      setLoading(false);
+    };
+    getSpecialties();
+  }, []);
+
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -19,6 +31,16 @@ const SpecialtiesSection = () => {
     hidden: { y: 20, opacity: 0 },
     visible: { y: 0, opacity: 1 },
   };
+
+  if (loading) {
+    return (
+      <section id="specialties" className="py-24 bg-background-primary relative overflow-hidden">
+        <div className="container mx-auto px-6 text-center">
+          <p className="text-text-secondary">Loading specialties...</p>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section id="specialties" className="py-24 bg-background-primary relative overflow-hidden">
@@ -54,7 +76,7 @@ const SpecialtiesSection = () => {
             const IconComponent = LucideIcons[spec.icon] || LucideIcons.Activity;
             return (
               <motion.div
-                key={spec.id}
+                key={spec.id || spec._id}
                 variants={itemVariants}
                 whileHover={{ y: -10, transition: { duration: 0.2 } }}
               >

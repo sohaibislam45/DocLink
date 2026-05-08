@@ -17,7 +17,7 @@ const FeaturedDoctorsSection = () => {
       try {
         setLoading(true);
         const data = await fetchDoctors({ minRating: 4.5 });
-        setDoctors(data.slice(0, 3));
+        setDoctors(data.slice(0, 6));
       } catch (err) {
         setError(err.message);
       } finally {

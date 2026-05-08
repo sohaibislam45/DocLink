@@ -15,8 +15,8 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/Avatar";
 import { cn } from "../../lib/utils";
 import useDoctorOnlineStatus from "../../hooks/useDoctorOnlineStatus";
-import specialtiesData from "../../data/specialties.json";
 import Swal from "sweetalert2";
+import { fetchSpecialties } from "../../api/common";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const DEFAULT_HOURS = {
@@ -33,6 +33,18 @@ const DoctorAvailabilityPage = () => {
   const { user } = useAuth();
   const { isOnline, toggleOnline } = useDoctorOnlineStatus();
   const fileInputRef = useRef(null);
+
+  const [specialties, setSpecialties] = useState([]);
+  const [loadingSpecs, setLoadingSpecs] = useState(true);
+
+  useEffect(() => {
+    const loadSpecs = async () => {
+      const data = await fetchSpecialties();
+      setSpecialties(data || []);
+      setLoadingSpecs(false);
+    };
+    loadSpecs();
+  }, []);
 
   const [hours, setHours] = useState(DEFAULT_HOURS);
   const [isSavingAvail, setIsSavingAvail] = useState(false);
@@ -308,9 +320,13 @@ const DoctorAvailabilityPage = () => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-[#1A1F2E] border-white/10 text-white">
-                    {specialtiesData.map((s) => (
-                      <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
-                    ))}
+                    {loadingSpecs ? (
+                      <SelectItem disabled value="loading">Loading specialties...</SelectItem>
+                    ) : (
+                      specialties.map((s) => (
+                        <SelectItem key={s.id || s._id} value={s.name}>{s.name}</SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
               </div>

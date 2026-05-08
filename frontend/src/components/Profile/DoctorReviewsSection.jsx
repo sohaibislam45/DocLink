@@ -3,14 +3,12 @@ import { motion } from 'framer-motion';
 import { Badge } from '../ui/Badge';
 import ReviewCard from './ReviewCard';
 import { useDoctorProfile } from '../../context/DoctorProfileContext';
-import reviewsData from '../../data/reviews.json';
 
 const DoctorReviewsSection = () => {
   const { doctor } = useDoctorProfile();
   
-  // Find reviews for the specific doctor
-  const doctorReviewsData = reviewsData.find(item => item.doctorId === doctor.id);
-  const reviewsList = doctorReviewsData ? doctorReviewsData.reviews : [];
+  // Doctor profile from API now includes reviews in the object
+  const reviewsList = doctor?.reviews || [];
 
   return (
     <motion.section 
@@ -22,7 +20,7 @@ const DoctorReviewsSection = () => {
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">Patient Reviews</h2>
         <Badge variant="outline" className="border-border text-text-secondary">
-          Avg. {doctor.rating} Rating
+          Avg. {doctor?.rating} Rating
         </Badge>
       </div>
       
@@ -30,7 +28,7 @@ const DoctorReviewsSection = () => {
         {reviewsList.length > 0 ? (
           reviewsList.map((review, index) => (
             <motion.div
-              key={review.id}
+              key={review.id || index}
               whileInView={{ y: 0, opacity: 1 }}
               initial={{ y: 20, opacity: 0 }}
               viewport={{ once: true }}
