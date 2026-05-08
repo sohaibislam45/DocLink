@@ -6,6 +6,9 @@ import doctorRoutes from "./routes/doctors.js";
 import patientRoutes from "./routes/patients.js";
 import consultationRoutes from "./routes/consultations.js";
 import prescriptionRoutes from "./routes/prescriptions.js";
+import specialtyRoutes from "./routes/specialties.js";
+import testimonialRoutes from "./routes/testimonials.js";
+import categoryRoutes from "./routes/categories.js";
 
 dotenv.config();
 const app = express();
@@ -22,6 +25,9 @@ app.use("/api/doctors", doctorRoutes);
 app.use("/api/patients", patientRoutes);
 app.use("/api/consultations", consultationRoutes);
 app.use("/api/prescriptions", prescriptionRoutes);
+app.use("/api/specialties", specialtyRoutes);
+app.use("/api/testimonials", testimonialRoutes);
+app.use("/api/categories", categoryRoutes);
 
 // 404 handler
 app.use((req, res) => res.status(404).json({ error: "Route not found" }));
