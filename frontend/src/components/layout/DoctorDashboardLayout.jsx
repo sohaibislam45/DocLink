@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "../ui/Avatar";
 import { cn } from "../../lib/utils";
 import useDoctorOnlineStatus from "../../hooks/useDoctorOnlineStatus";
 
-const SidebarItem = ({ icon: Icon, label, href, active, external }) => {
+const SidebarItem = ({ icon: Icon, label, href, active, external, badge }) => {
   const content = (
     <motion.div
       whileHover={{ x: 4 }}
@@ -20,9 +20,18 @@ const SidebarItem = ({ icon: Icon, label, href, active, external }) => {
     >
       <Icon className={cn("w-5 h-5 shrink-0", active ? "text-white" : "group-hover:text-accent-primary")} />
       <span className="font-medium">{label}</span>
+      {badge && (
+        <span className={cn(
+          "ml-auto w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold",
+          active ? "bg-white text-accent-primary" : "bg-accent-primary text-white shadow-md shadow-accent-primary/30"
+        )}>
+          {badge}
+        </span>
+      )}
       {external && <Lucide.ExternalLink className="w-3 h-3 ml-auto opacity-50" />}
     </motion.div>
   );
+
 
   return <Link to={href}>{content}</Link>;
 };
@@ -31,14 +40,40 @@ const DoctorDashboardLayout = () => {
   const { user, logout } = useAuth();
   const location = useLocation();
   const { isOnline, toggleOnline } = useDoctorOnlineStatus();
+  const [queueCount, setQueueCount] = React.useState(0);
+
+  React.useEffect(() => {
+    const socket = getSocket();
+    if (!socket) return;
+
+    // Handle initial state if already connected
+    socket.on("queue:state", (queue) => {
+      setQueueCount(queue.filter(e => e.status === "waiting").length);
+    });
+
+    socket.on("queue:updated", (queue) => {
+      setQueueCount(queue.filter(e => e.status === "waiting").length);
+    });
+
+    return () => {
+      socket.off("queue:state");
+      socket.off("queue:updated");
+    };
+  }, []);
 
   const navItems = [
     { icon: Lucide.LayoutDashboard, label: "Overview", href: "/doctor/dashboard" },
-    { icon: Lucide.Users, label: "Queue Management", href: "/doctor/queue" },
+    { 
+      icon: Lucide.Users, 
+      label: "Queue Management", 
+      href: "/doctor/queue",
+      badge: queueCount > 0 ? queueCount : null 
+    },
     { icon: Lucide.FolderOpen, label: "Patient Records", href: "/doctor/patients" },
     { icon: Lucide.FilePlus, label: "Prescription Writer", href: "/doctor/prescriptions/new" },
     { icon: Lucide.CalendarClock, label: "Availability & Profile", href: "/doctor/availability" },
   ];
+
 
   const sidebarVariants = {
     hidden: { x: -30, opacity: 0 },

@@ -32,7 +32,7 @@ const BookingSection = ({ queueState, onOpenIntakeForm }) => {
   }
 
   // Calculate estimated wait time
-  const estimatedTotalMins = queueState.effectiveQueueCount * 12;
+  const estimatedTotalMins = queueState.queue.length * 12;
 
   return (
     <div className="lg:col-span-1">
@@ -75,8 +75,8 @@ const BookingSection = ({ queueState, onOpenIntakeForm }) => {
                 <div className="space-y-2 w-full">
                   <h3 className="text-xl font-bold text-text-primary">Join the Queue</h3>
                   <p className="text-text-secondary">
-                    {queueState.effectiveQueueCount > 0 
-                      ? <><span className="text-blue-600 font-bold">{queueState.effectiveQueueCount}</span> patients ahead of you</>
+                    {queueState.queue.length > 0 
+                      ? <><span className="text-blue-600 font-bold">{queueState.queue.length}</span> patients ahead of you</>
                       : 'You will be the first in line'}
                   </p>
                 </div>

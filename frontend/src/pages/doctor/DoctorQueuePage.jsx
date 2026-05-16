@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import * as Lucide from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -15,55 +15,99 @@ import {
 import { Button } from "../../components/ui/Button";
 import { cn } from "../../lib/utils";
 import useConsultationTimer from "../../hooks/useConsultationTimer";
+import useAuth from "../../hooks/useAuth";
+import { useSocketQueue } from "../../hooks/useSocketQueue";
+import { getSocket } from "../../lib/socket";
 import Swal from "sweetalert2";
-
-const initialQueue = [
-  { id: "q-001", name: "Patient A", reason: "Chest discomfort", joinedAt: "9:02 AM", waitMins: 12 },
-  { id: "q-002", name: "Patient B", reason: "Skin rash follow-up", joinedAt: "9:14 AM", waitMins: 9 },
-  { id: "q-003", name: "Patient C", reason: "Anxiety consultation", joinedAt: "9:23 AM", waitMins: 11 },
-  { id: "q-004", name: "Patient D", reason: "Blood pressure check", joinedAt: "9:31 AM", waitMins: 8 },
-];
+import { createRoom } from "../../api/rooms";
 
 const DoctorQueuePage = () => {
   const navigate = useNavigate();
-  const [queue, setQueue] = useState(initialQueue);
+  const { user } = useAuth();
+  const socket = getSocket();
+  
+  // Initialize real-time queue
+  // In this app, doctorId usually corresponds to the user.uid
+  const { queue, loading, error: queueError } = useSocketQueue({ id: user?.uid });
+  
   const [currentPatient, setCurrentPatient] = useState(null);
   const [completedPatients, setCompletedPatients] = useState([]);
   const [skipTarget, setSkipTarget] = useState(null);
   const [showEndDialog, setShowEndDialog] = useState(false);
-  const [completedDurations, setCompletedDurations] = useState([]);
 
-  const { formattedTime, elapsed, reset: resetTimer } = useConsultationTimer(!!currentPatient);
+  // Sync current patient from queue
+  useEffect(() => {
+    const active = queue.find(p => p.status === "called" || p.status === "in-consultation");
+    setCurrentPatient(active || null);
+  }, [queue]);
 
-  const callNext = () => {
-    if (queue.length === 0) return;
-    const [next, ...rest] = queue;
-    setCurrentPatient(next);
-    setQueue(rest);
+  const { formattedTime, reset: resetTimer } = useConsultationTimer(!!currentPatient);
+
+  const handleCallNext = async () => {
+    if (!socket || waitingPatients.length === 0) return;
+    
+    const nextPatient = waitingPatients[0]; // the one being called
+
+    // 1. Emit Socket.io queue event
+    socket.emit("queue:call-next", { doctorId: user.uid });
     resetTimer();
+
+    try {
+      // 2. Create Daily.co room
+      const { roomId, roomName, roomUrl } = await createRoom({
+        doctorId: user.uid,
+        patientUid: nextPatient.patientUid,
+      });
+
+      // 3. Notify patient via Socket.io
+      socket.emit("call:start", {
+        doctorId: user.uid,
+        patientUid: nextPatient.patientUid,
+        roomId,
+        roomUrl,
+      });
+
+      // 4. Navigate doctor to call room
+      navigate(`/room/${roomId}`);
+    } catch (err) {
+      console.error("Failed to create room:", err);
+      Swal.fire({
+        title: "Error",
+        text: "Failed to create video room.",
+        icon: "error",
+        background: "#0A0F1E",
+        color: "#fff",
+      });
+    }
   };
 
   const confirmSkip = () => {
-    if (!skipTarget) return;
-    setQueue((prev) => {
-      const idx = prev.findIndex((p) => p.id === skipTarget.id);
-      if (idx === -1) return prev;
-      const updated = [...prev];
-      updated.splice(idx, 1);
-      updated.push(skipTarget);
-      return updated;
-    });
+    if (!skipTarget || !socket) return;
+    socket.emit("queue:skip", { doctorId: user.uid, entryId: skipTarget._id });
     setSkipTarget(null);
   };
 
   const endConsultation = () => {
-    if (!currentPatient) return;
+    if (!currentPatient || !socket) return;
     const duration = formattedTime;
+    
+    socket.emit("queue:done", { doctorId: user.uid, entryId: currentPatient._id });
+    
     setCompletedPatients((prev) => [...prev, { ...currentPatient, duration }]);
     setCurrentPatient(null);
     resetTimer();
     setShowEndDialog(false);
   };
+
+  const waitingPatients = queue.filter(p => p.status === "waiting");
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Lucide.Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -82,16 +126,16 @@ const DoctorQueuePage = () => {
               <p className="text-gray-500 text-sm">Click 'Call Next' to start the next consultation</p>
             </div>
             <span className="bg-amber-500/15 text-amber-400 border border-amber-500/30 text-sm font-semibold px-3 py-1 rounded-full">
-              {queue.length} waiting
+              {waitingPatients.length} waiting
             </span>
           </div>
 
           {/* Queue rows */}
           <div className="space-y-3">
             <AnimatePresence>
-              {queue.map((patient, idx) => (
+              {waitingPatients.map((patient, idx) => (
                 <motion.div
-                  key={patient.id}
+                  key={patient._id}
                   layout
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -103,15 +147,15 @@ const DoctorQueuePage = () => {
                     #{idx + 1}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-white font-semibold text-sm">{patient.name}</p>
+                    <p className="text-white font-semibold text-sm">{patient.patientName}</p>
                     <p className="text-gray-500 text-xs truncate">{patient.reason}</p>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
                     <span className="text-gray-500 text-xs hidden sm:flex items-center gap-1">
                       <Lucide.Clock className="w-3 h-3" />
-                      {patient.joinedAt}
+                      {new Date(patient.joinedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
-                    <span className="text-gray-600 text-xs hidden md:block">~{patient.waitMins} min wait</span>
+                    <span className="text-gray-600 text-xs hidden md:block">~{patient.estimatedWaitMins} min wait</span>
                     <button
                       onClick={() => setSkipTarget(patient)}
                       className="p-2 rounded-lg text-gray-500 hover:text-amber-400 hover:bg-amber-400/10 transition-all"
@@ -125,7 +169,7 @@ const DoctorQueuePage = () => {
             </AnimatePresence>
 
             {/* Empty state */}
-            {queue.length === 0 && !currentPatient && (
+            {waitingPatients.length === 0 && !currentPatient && (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -164,8 +208,8 @@ const DoctorQueuePage = () => {
                   <p className="text-gray-500 text-sm mt-1">Call the next patient to begin the consultation</p>
                 </div>
                 <Button
-                  onClick={callNext}
-                  disabled={queue.length === 0}
+                  onClick={handleCallNext}
+                  disabled={waitingPatients.length === 0}
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white border-none shadow-lg shadow-blue-600/20 h-12 font-semibold"
                 >
                   <Lucide.PhoneCall className="w-5 h-5 mr-2" />
@@ -195,14 +239,14 @@ const DoctorQueuePage = () => {
                   {/* Patient info */}
                   <div className="flex flex-col items-center text-center gap-3">
                     <div className="w-16 h-16 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white text-2xl font-bold">
-                      {currentPatient.name.split(" ").map((n) => n[0]).join("")}
+                      {currentPatient.patientName.split(" ").map((n) => n[0]).join("")}
                     </div>
                     <div>
-                      <p className="text-white text-xl font-semibold">{currentPatient.name}</p>
+                      <p className="text-white text-xl font-semibold">{currentPatient.patientName}</p>
                       <p className="text-gray-400 text-sm">{currentPatient.reason}</p>
                       <p className="text-gray-500 text-xs mt-1 flex items-center justify-center gap-1">
                         <Lucide.Clock className="w-3 h-3" />
-                        Joined at {currentPatient.joinedAt}
+                        Joined at {new Date(currentPatient.joinedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </p>
                     </div>
                   </div>
@@ -219,7 +263,7 @@ const DoctorQueuePage = () => {
                       variant="outline"
                       onClick={() =>
                         navigate(
-                          `/doctor/prescriptions/new?patient=${encodeURIComponent(currentPatient.name)}&reason=${encodeURIComponent(currentPatient.reason)}`
+                          `/doctor/prescriptions/new?patient=${encodeURIComponent(currentPatient.patientName)}&reason=${encodeURIComponent(currentPatient.reason)}`
                         )
                       }
                       className="w-full bg-white/5 border-white/15 text-white hover:bg-white/10 h-11"
@@ -262,16 +306,16 @@ const DoctorQueuePage = () => {
               <AnimatePresence>
                 {completedPatients.map((p, idx) => (
                   <motion.div
-                    key={`${p.id}-${idx}`}
+                    key={`${p._id}-${idx}`}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="grid grid-cols-4 gap-4 px-6 py-4 items-center"
                   >
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
-                        {p.name.split(" ").map((n) => n[0]).join("")}
+                        {p.patientName.split(" ").map((n) => n[0]).join("")}
                       </div>
-                      <span className="text-white text-sm font-medium truncate">{p.name}</span>
+                      <span className="text-white text-sm font-medium truncate">{p.patientName}</span>
                     </div>
                     <span className="text-gray-400 text-sm truncate">{p.reason}</span>
                     <span className="text-cyan-400 font-semibold text-sm tabular-nums">{p.duration}</span>
@@ -308,7 +352,7 @@ const DoctorQueuePage = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Skip this patient?</AlertDialogTitle>
             <AlertDialogDescription className="text-gray-400">
-              {skipTarget?.name} will be moved to the end of the queue.
+              {skipTarget?.patientName} will be moved to the end of the queue.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

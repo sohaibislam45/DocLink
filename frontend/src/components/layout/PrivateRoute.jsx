@@ -3,7 +3,7 @@ import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { motion } from "framer-motion";
 
-const PrivateRoute = ({ children, allowedRole }) => {
+const PrivateRoute = ({ children, allowedRole, allowedRoles }) => {
   const { user, role, loading } = useAuth();
   const location = useLocation();
 
@@ -20,12 +20,20 @@ const PrivateRoute = ({ children, allowedRole }) => {
   }
 
   if (!user) {
-    // Redirect to login based on allowedRole
-    const loginPath = allowedRole === "doctor" ? "/login/doctor" : "/login/patient";
+    // Redirect to login based on allowedRole or allowedRoles
+    let loginPath = "/login/patient";
+    if (allowedRole === "doctor" || (allowedRoles && allowedRoles.includes("doctor"))) {
+      loginPath = "/login/doctor";
+    }
     return <Navigate to={loginPath} state={{ from: location }} replace />;
   }
 
-  if (allowedRole && role !== allowedRole) {
+  if (allowedRoles) {
+    if (!allowedRoles.includes(role)) {
+      console.warn(`Access denied. Required roles: ${allowedRoles}, Current role: ${role}`);
+      return <Navigate to="/" replace />;
+    }
+  } else if (allowedRole && role !== allowedRole) {
     // User exists but role doesn't match
     console.warn(`Access denied. Required role: ${allowedRole}, Current role: ${role}`);
     return <Navigate to="/" replace />;

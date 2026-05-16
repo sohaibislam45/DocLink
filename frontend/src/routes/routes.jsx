@@ -31,6 +31,9 @@ import DoctorPatientsPage from "../pages/doctor/DoctorPatientsPage";
 import DoctorPrescriptionWriter from "../pages/doctor/DoctorPrescriptionWriter";
 import DoctorAvailabilityPage from "../pages/doctor/DoctorAvailabilityPage";
 
+// Call Room
+import CallRoomPage from "../pages/CallRoomPage";
+
 const RootLayout = () => (
   <AuthProvider>
     <ThemeProvider>
@@ -154,6 +157,15 @@ const routes = createBrowserRouter([
                 element: <DoctorAvailabilityPage />,
               },
             ],
+          },
+          // Shared Call Room Route
+          {
+            path: "room/:roomId",
+            element: (
+              <PrivateRoute allowedRoles={["patient", "doctor"]}>
+                <CallRoomPage />
+              </PrivateRoute>
+            ),
           },
         ],
       },

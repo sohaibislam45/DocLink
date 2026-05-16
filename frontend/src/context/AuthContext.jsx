@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "../lib/firebase";
 import { useNavigate } from "react-router-dom";
+import { initSocket, disconnectSocket } from "../lib/socket";
 
 const AuthContext = createContext();
 
@@ -17,11 +18,20 @@ export const AuthProvider = ({ children }) => {
       if (!currentUser) {
         setRole(null);
         localStorage.removeItem("doclink_role");
+        disconnectSocket();
       } else {
         // Role is usually set during login, but we sync it from localStorage here
         const savedRole = localStorage.getItem("doclink_role");
         setRole(savedRole);
         
+        // Initialize socket
+        try {
+          const token = await currentUser.getIdToken();
+          initSocket(token);
+        } catch (error) {
+          console.error("Error initializing socket:", error);
+        }
+
         // Sync patient profile if role is patient
         if (savedRole === "patient") {
           try {
@@ -46,16 +56,25 @@ export const AuthProvider = ({ children }) => {
       await signOut(auth);
       localStorage.removeItem("doclink_role");
       setRole(null);
+      disconnectSocket();
       navigate("/");
     } catch (error) {
       console.error("Logout error:", error);
     }
   };
 
-  const loginWithRole = (userObj, userRole) => {
+  const loginWithRole = async (userObj, userRole) => {
     setUser(userObj);
     setRole(userRole);
     localStorage.setItem("doclink_role", userRole);
+    
+    // Ensure socket is initialized after login
+    try {
+      const token = await userObj.getIdToken();
+      initSocket(token);
+    } catch (error) {
+      console.error("Error initializing socket after login:", error);
+    }
   };
 
   return (
@@ -64,6 +83,7 @@ export const AuthProvider = ({ children }) => {
     </AuthContext.Provider>
   );
 };
+
 
 export const useAuth = () => {
   const context = useContext(AuthContext);

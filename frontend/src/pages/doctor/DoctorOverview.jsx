@@ -2,159 +2,181 @@ import React from "react";
 import { motion } from "framer-motion";
 import * as Lucide from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { cn } from "../../lib/utils";
 import { Button } from "../../components/ui/Button";
+import { useAuth } from "../../context/AuthContext";
+import { useSocketQueue } from "../../hooks/useSocketQueue";
+import { getSocket } from "../../lib/socket";
+import { cn } from "../../lib/utils";
 
-const cardVariants = {
-  hidden: { y: 20, opacity: 0 },
-  visible: { y: 0, opacity: 1 },
-};
-
-const StatCard = ({ icon: Icon, label, value, trend, trendColor }) => (
+const StatCard = ({ icon: Icon, label, value, trend, color }) => (
   <motion.div
-    variants={cardVariants}
-    className="bg-background-secondary border border-border rounded-2xl p-6 flex flex-col gap-4 hover:border-accent-primary/30 transition-all cursor-default group shadow-sm"
+    whileHover={{ y: -4 }}
+    className="bg-background-secondary border border-border p-6 rounded-3xl shadow-sm"
   >
-    <div className="flex items-center justify-between">
-      <div className="p-3 rounded-xl bg-accent-primary/10">
-        <Icon className="w-6 h-6 text-accent-primary" />
+    <div className="flex items-center justify-between mb-4">
+      <div className={cn("p-3 rounded-2xl", color)}>
+        <Icon className="w-6 h-6" />
       </div>
-      <span className={cn("text-xs font-medium px-2.5 py-1 rounded-full", trendColor)}>{trend}</span>
+      {trend && (
+        <span className={cn(
+          "text-xs font-bold px-2 py-1 rounded-lg",
+          trend.startsWith("+") ? "bg-success/10 text-success" : "bg-danger/10 text-danger"
+        )}>
+          {trend}
+        </span>
+      )}
     </div>
-    <div>
-      <h4 className="text-3xl font-bold text-text-primary mb-1">{value}</h4>
-      <p className="text-text-secondary text-sm">{label}</p>
-    </div>
+    <h4 className="text-text-secondary text-sm font-medium">{label}</h4>
+    <p className="text-2xl font-bold text-text-primary mt-1">{value}</p>
   </motion.div>
 );
 
-const queuePatients = [
-  { pos: 1, name: "Patient A", reason: "Chest pain", wait: "~5 mins", status: "In Consultation" },
-  { pos: 2, name: "Patient B", reason: "Skin rash", wait: "~18 mins", status: "Waiting" },
-  { pos: 3, name: "Patient C", reason: "Follow-up", wait: "~30 mins", status: "Waiting" },
-];
-
-const statusStyle = {
-  "In Consultation": "bg-accent-primary/15 text-accent-primary border border-accent-primary/30",
-  Waiting: "bg-warning/15 text-warning border border-warning/30",
-  Completed: "bg-success/15 text-success border border-success/30",
-};
-
-const activities = [
-  { icon: Lucide.CheckCircle2, color: "text-success bg-success/10", text: "Consultation with Patient A completed", time: "18 mins ago" },
-  { icon: Lucide.FileText, color: "text-accent-primary bg-accent-primary/10", text: "Prescription issued to Patient B", time: "42 mins ago" },
-  { icon: Lucide.Clock, color: "text-warning bg-warning/10", text: "Patient C joined the queue", time: "1 hour ago" },
-  { icon: Lucide.CheckCircle2, color: "text-success bg-success/10", text: "Consultation with Patient D completed", time: "2 hours ago" },
-];
-
 const DoctorOverview = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { queue, loading } = useSocketQueue({ id: user?.uid });
+  const socket = getSocket();
+
+  const waitingPatients = queue.filter(p => p.status === "waiting");
+  const currentPatient = queue.find(p => p.status === "called" || p.status === "in-consultation");
+
+  const callNext = () => {
+    if (!socket) return;
+    socket.emit("queue:call-next", { doctorId: user.uid });
+  };
 
   const stats = [
-    { icon: Lucide.Users, label: "Total Patients", value: "142", trend: "+8 this week", trendColor: "bg-success/10 text-success" },
-    { icon: Lucide.Stethoscope, label: "Consultations Today", value: "6", trend: "3 remaining", trendColor: "bg-warning/10 text-warning" },
-    { icon: Lucide.FileText, label: "Prescriptions Issued", value: "38", trend: "+3 today", trendColor: "bg-success/10 text-success" },
-    { icon: Lucide.Star, label: "Average Rating", value: "4.8", trend: "Based on 214 reviews", trendColor: "bg-text-secondary/10 text-text-secondary" },
+    { icon: Lucide.Users, label: "Patients in Queue", value: waitingPatients.length.toString(), color: "bg-blue-500/10 text-blue-500" },
+    { icon: Lucide.Activity, label: "Today's Consultations", value: "12", trend: "+15%", color: "bg-emerald-500/10 text-emerald-500" },
+    { icon: Lucide.Clock, label: "Avg. Wait Time", value: "14 min", trend: "-5%", color: "bg-amber-500/10 text-amber-500" },
+    { icon: Lucide.Star, label: "Patient Rating", value: "4.9", trend: "+0.2", color: "bg-purple-500/10 text-purple-500" },
   ];
-
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.1 } },
-  };
 
   return (
     <div className="space-y-8">
-      <div>
-        <h2 className="text-2xl font-bold text-text-primary mb-1">Doctor Dashboard</h2>
-        <p className="text-text-secondary">Welcome back! Here's your clinical overview for today.</p>
+      {/* Welcome Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-text-primary">Welcome back, Dr. {user?.displayName?.split(" ")[1] || "Doc"}</h2>
+          <p className="text-text-secondary mt-1">You have {waitingPatients.length} patients waiting in your queue today.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button 
+            onClick={callNext}
+            disabled={waitingPatients.length === 0 || !!currentPatient}
+            className="bg-accent-primary hover:bg-accent-primary/90 text-white rounded-2xl px-6 h-12 font-semibold shadow-lg shadow-accent-primary/20"
+          >
+            <Lucide.PhoneCall className="w-5 h-5 mr-2" />
+            Call Next Patient
+          </Button>
+        </div>
       </div>
 
       {/* Stats Grid */}
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-        className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4"
-      >
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, idx) => (
           <StatCard key={idx} {...stat} />
         ))}
-      </motion.div>
+      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        {/* Today's Queue Snapshot */}
-        <motion.div
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="lg:col-span-3 bg-background-secondary border border-border rounded-2xl overflow-hidden shadow-sm"
-        >
-          <div className="px-6 py-4 border-b border-border flex items-center justify-between">
-            <h3 className="text-text-primary font-semibold flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
-              Today's Queue
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Queue Preview */}
+        <div className="lg:col-span-2 space-y-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-bold text-text-primary flex items-center gap-2">
+              <Lucide.ListOrdered className="w-5 h-5 text-accent-primary" />
+              Queue Preview
             </h3>
-            <Button
-              size="sm"
-              onClick={() => navigate("/doctor/queue")}
-              className="bg-accent-primary hover:bg-accent-primary/90 text-white border-none text-xs h-8 px-4 shadow-lg shadow-accent-primary/20"
-            >
-              Manage Queue
-            </Button>
+            <Link to="/doctor/queue" className="text-accent-primary text-sm font-semibold hover:underline">
+              View Full Queue
+            </Link>
           </div>
-          <div className="p-4 space-y-3">
-            {queuePatients.map((p) => (
-              <div
-                key={p.pos}
-                className="flex items-center gap-4 p-4 bg-background-primary border border-border rounded-xl"
-              >
-                <span className="w-8 h-8 rounded-full bg-accent-primary/20 text-accent-primary flex items-center justify-center text-sm font-bold shrink-0">
-                  #{p.pos}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-text-primary font-semibold text-sm truncate">{p.name}</p>
-                  <p className="text-text-secondary text-xs truncate">{p.reason}</p>
+
+          <div className="bg-background-secondary border border-border rounded-3xl overflow-hidden shadow-sm">
+            {loading ? (
+              <div className="p-8 flex justify-center">
+                <Lucide.Loader2 className="w-8 h-8 text-accent-primary animate-spin" />
+              </div>
+            ) : waitingPatients.length > 0 ? (
+              <div className="divide-y divide-border">
+                {waitingPatients.slice(0, 4).map((patient, idx) => (
+                  <div key={patient._id} className="p-5 flex items-center gap-4 hover:bg-background-tertiary transition-colors">
+                    <div className="w-10 h-10 rounded-full bg-accent-primary/10 text-accent-primary flex items-center justify-center font-bold text-sm">
+                      #{idx + 1}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-text-primary font-semibold text-sm truncate">{patient.patientName}</p>
+                      <p className="text-text-secondary text-xs truncate">{patient.reason}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-text-primary font-medium text-xs">
+                        {new Date(patient.joinedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                      <p className="text-text-secondary text-[10px]">~{patient.estimatedWaitMins} min wait</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-12 text-center">
+                <div className="w-16 h-16 bg-success/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Lucide.CheckCircle className="w-8 h-8 text-success" />
                 </div>
-                <div className="flex items-center gap-3 shrink-0">
-                  <span className="text-text-secondary text-xs hidden sm:block">{p.wait}</span>
-                  <span className={cn("text-xs font-medium px-2.5 py-1 rounded-full", statusStyle[p.status])}>
-                    {p.status}
+                <h4 className="text-text-primary font-semibold">Queue is empty</h4>
+                <p className="text-text-secondary text-sm mt-1">Take a break or update your availability.</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Quick Actions / Active Consultation */}
+        <div className="space-y-6">
+          <h3 className="text-lg font-bold text-text-primary">Quick Actions</h3>
+          <div className="grid gap-4">
+            {currentPatient ? (
+              <div className="bg-accent-primary rounded-3xl p-6 text-white shadow-xl shadow-accent-primary/30 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 p-4 opacity-20 transform translate-x-4 -translate-y-4 group-hover:translate-x-2 group-hover:-translate-y-2 transition-transform duration-500">
+                  <Lucide.Activity className="w-24 h-24" />
+                </div>
+                <div className="relative z-10">
+                  <span className="inline-block bg-white/20 text-white text-[10px] font-bold px-2 py-0.5 rounded-full mb-3 uppercase tracking-wider">
+                    In Consultation
                   </span>
+                  <h4 className="text-xl font-bold mb-1 truncate">{currentPatient.patientName}</h4>
+                  <p className="text-white/80 text-sm mb-6">{currentPatient.reason}</p>
+                  <Button className="w-full bg-white text-accent-primary hover:bg-white/90 border-none rounded-2xl font-bold">
+                    Join Video Call
+                  </Button>
                 </div>
               </div>
-            ))}
-          </div>
-        </motion.div>
+            ) : (
+              <div className="bg-background-secondary border border-border border-dashed rounded-3xl p-6 text-center">
+                <Lucide.Video className="w-10 h-10 text-text-secondary/30 mx-auto mb-3" />
+                <p className="text-text-secondary text-sm">No active session</p>
+              </div>
+            )}
 
-        {/* Recent Activity Feed */}
-        <div className="lg:col-span-2 bg-background-secondary border border-border rounded-2xl overflow-hidden shadow-sm">
-          <div className="px-6 py-4 border-b border-border">
-            <h3 className="text-text-primary font-semibold flex items-center gap-2">
-              <Lucide.History className="w-5 h-5 text-accent-primary" />
-              Recent Activity
-            </h3>
-          </div>
-          <div className="p-6 space-y-6">
-            {activities.map((activity, idx) => (
-              <motion.div
-                key={idx}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.4 + idx * 0.08 }}
-                className="flex items-start gap-4 relative"
-              >
-                {idx !== activities.length - 1 && (
-                  <div className="absolute left-5 top-10 bottom-[-24px] w-px bg-border" />
-                )}
-                <div className={cn("p-2 rounded-full shrink-0", activity.color)}>
-                  <activity.icon className="w-4 h-4" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-text-primary text-sm leading-tight mb-1">{activity.text}</p>
-                  <p className="text-text-secondary text-xs">{activity.time}</p>
-                </div>
-              </motion.div>
-            ))}
+            <Button 
+              variant="outline" 
+              asChild
+              className="w-full h-14 rounded-2xl border-border hover:bg-background-tertiary text-text-primary justify-start px-6"
+            >
+              <Link to="/doctor/prescriptions/new">
+                <Lucide.FilePlus className="w-5 h-5 mr-3 text-accent-primary" />
+                New Prescription
+              </Link>
+            </Button>
+
+            <Button 
+              variant="outline"
+              asChild
+              className="w-full h-14 rounded-2xl border-border hover:bg-background-tertiary text-text-primary justify-start px-6"
+            >
+              <Link to="/doctor/availability">
+                <Lucide.Calendar className="w-5 h-5 mr-3 text-amber-500" />
+                Update Availability
+              </Link>
+            </Button>
           </div>
         </div>
       </div>

@@ -8,10 +8,11 @@ import DoctorAboutSection from './DoctorAboutSection';
 import DoctorReviewsSection from './DoctorReviewsSection';
 import BookingSection from './BookingSection';
 import { DoctorProfileProvider } from '../../context/DoctorProfileContext';
-import useQueue from '../../hooks/useQueue';
+import { useSocketQueue } from '../../hooks/useSocketQueue';
 import ConnectModal from '../common/ConnectModal';
 import { Skeleton } from '../ui/Skeleton';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Video, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const DoctorProfileContent = () => {
   const { id } = useParams();
@@ -37,8 +38,15 @@ const DoctorProfileContent = () => {
     loadDoctor();
   }, [id]);
 
-  // Custom queue hook
-  const queueState = useQueue(doctor);
+  // Real-time socket queue hook
+  const queueState = useSocketQueue(doctor);
+  const { isCalled, setIsCalled, incomingCall } = queueState;
+
+  useEffect(() => {
+    if (incomingCall) {
+      navigate(`/room/${incomingCall.roomId}`);
+    }
+  }, [incomingCall, navigate]);
 
   if (loading) {
     return (
@@ -72,9 +80,13 @@ const DoctorProfileContent = () => {
     );
   }
 
-  const handleJoinQueue = (name, reason) => {
-    queueState.joinQueue(name, reason);
-    setShowIntakeForm(false);
+  const handleJoinQueue = async (name, reason) => {
+    try {
+      await queueState.joinQueue(name, reason);
+      setShowIntakeForm(false);
+    } catch (err) {
+      console.error("Failed to join queue:", err);
+    }
   };
 
   return (
@@ -104,6 +116,62 @@ const DoctorProfileContent = () => {
         onSubmit={handleJoinQueue}
         doctorName={doctor.name}
       />
+
+      {/* "Doctor is Calling You!" Full-Screen Overlay */}
+      <AnimatePresence>
+        {isCalled && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-950/90 backdrop-blur-xl"
+          >
+            <div className="max-w-md w-full bg-background-secondary/50 border border-white/10 p-10 rounded-[2.5rem] shadow-2xl text-center relative overflow-hidden">
+              {/* Pulsing glow effect */}
+              <div className="absolute -top-24 -left-24 w-48 h-48 bg-blue-500/20 blur-3xl rounded-full" />
+              <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-emerald-500/20 blur-3xl rounded-full" />
+
+              <div className="relative z-10">
+                <button 
+                  onClick={() => setIsCalled(false)}
+                  className="absolute -top-4 -right-4 p-2 text-slate-400 hover:text-white transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+
+                <div className="w-24 h-24 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-8 relative">
+                  <div className="absolute inset-0 bg-blue-600 rounded-full animate-ping opacity-25" />
+                  <Video className="w-10 h-10 text-white" />
+                </div>
+
+                <h2 className="text-3xl font-black text-white mb-4">Doctor is Calling!</h2>
+                <p className="text-slate-400 mb-10 leading-relaxed">
+                  Dr. <span className="text-white font-bold">{doctor.name}</span> is ready for your consultation. Please join the call now.
+                </p>
+
+                <Button 
+                  onClick={() => {
+                    if (incomingCall) {
+                      navigate(`/room/${incomingCall.roomId}`);
+                    }
+                    setIsCalled(false);
+                  }}
+                  className="w-full py-8 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xl shadow-[0_0_30px_rgba(37,99,235,0.4)] transition-all hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  Join Call Now
+                </Button>
+
+                <button 
+                  onClick={() => setIsCalled(false)}
+                  className="mt-6 text-slate-500 text-sm font-medium hover:text-slate-300 transition-colors"
+                >
+                  Not ready yet
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </DoctorProfileProvider>
   );
 };
