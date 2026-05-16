@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { getSocket } from "../lib/socket.js";
 import { auth } from "../lib/firebase.js";
-import { useToast } from "@/components/ui/use-toast";
+import { showSuccess } from "../lib/swal.js";
 import {
   joinQueue as apiJoinQueue,
   leaveQueue as apiLeaveQueue,
@@ -17,7 +17,6 @@ export const useSocketQueue = (doctor) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  const { toast } = useToast();
   const wasDisconnected = useRef(false);
   const socket = getSocket();
   const doctorId = doctor?.id || doctor?._id; // handle both id formats
@@ -77,12 +76,7 @@ export const useSocketQueue = (doctor) => {
     // Reconnection: restore queue state
     socket.on("connect", () => {
       if (wasDisconnected.current) {
-        toast({ 
-          title: "Reconnected", 
-          description: "Your queue position has been restored.", 
-          variant: "default",
-          className: "bg-emerald-500 text-white border-none"
-        });
+        showSuccess("Reconnected: Your queue position has been restored.");
       }
       wasDisconnected.current = false;
       socket.emit("join:room", { doctorId });
@@ -101,7 +95,7 @@ export const useSocketQueue = (doctor) => {
       socket.off("connect");
       socket.off("disconnect");
     };
-  }, [socket, doctorId, syncMyEntry, toast]);
+  }, [socket, doctorId, syncMyEntry]);
 
   // Patient joins queue
   const joinQueue = useCallback(async (name, reason) => {

@@ -4,20 +4,15 @@ import { useNavigate } from 'react-router-dom';
 import * as LucideIcons from 'lucide-react';
 import { Card, CardContent } from '../ui/Card';
 import { fetchSpecialties } from '../../api/common';
+import { useQuery } from '@tanstack/react-query';
 
 const SpecialtiesSection = () => {
   const navigate = useNavigate();
-  const [specialtiesData, setSpecialtiesData] = React.useState([]);
-  const [loading, setLoading] = React.useState(true);
 
-  React.useEffect(() => {
-    const getSpecialties = async () => {
-      const data = await fetchSpecialties();
-      setSpecialtiesData(data || []);
-      setLoading(false);
-    };
-    getSpecialties();
-  }, []);
+  const { data: specialtiesData = [], isLoading: loading } = useQuery({
+    queryKey: ['specialties'],
+    queryFn: fetchSpecialties,
+  });
 
   const containerVariants = {
     hidden: { opacity: 0 },

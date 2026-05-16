@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import logoImg from "../../assets/logo.png";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useNavigate, useLocation } from "react-router-dom";
@@ -8,46 +8,71 @@ import { useAuth } from "../../context/AuthContext";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import * as Lucide from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 
 import { useTheme } from "../../context/ThemeContext";
 import { cn } from "../../lib/utils";
+
+const loginSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+});
+
+const registerSchema = z.object({
+  fullName: z.string().min(2, "Full name must be at least 2 characters"),
+  email: z.string().email("Invalid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  confirmPassword: z.string().min(6, "Please confirm your password"),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
+});
 
 const AuthComponent = ({ type }) => {
   const location = useLocation();
   const isRegisterPage = location.pathname.includes("register");
   const [isLogin, setIsLogin] = useState(!isRegisterPage);
-
-  // Update state when location changes (e.g. clicking Sign In vs Get Started while already on the page)
-  React.useEffect(() => {
-    setIsLogin(!location.pathname.includes("register"));
-  }, [location.pathname]);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [authError, setAuthError] = useState("");
   const { loginWithRole } = useAuth();
   const { isDarkMode } = useTheme();
   const navigate = useNavigate();
 
-  const [formData, setFormData] = useState({
-    fullName: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(isLogin ? loginSchema : registerSchema),
+    defaultValues: {
+      fullName: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+    },
   });
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-    setError("");
-  };
+  // Update state and reset form when location changes
+  useEffect(() => {
+    const newIsLogin = !location.pathname.includes("register");
+    setIsLogin(newIsLogin);
+    reset();
+    setAuthError("");
+  }, [location.pathname, reset]);
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
+    setAuthError("");
     try {
       const result = await signInWithPopup(auth, googleProvider);
       loginWithRole(result.user, type);
       navigate(type === "doctor" ? "/doctor/dashboard" : "/patient/dashboard");
     } catch (err) {
-      setError(err.message);
+      setAuthError(err.message);
       const Swal = (await import("sweetalert2")).default;
       Swal.fire({
         toast: true,
@@ -65,27 +90,23 @@ const AuthComponent = ({ type }) => {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const onSubmit = async (data) => {
     setIsLoading(true);
-    setError("");
+    setAuthError("");
 
     try {
       if (isLogin) {
-        const result = await signInWithEmailAndPassword(auth, formData.email, formData.password);
+        const result = await signInWithEmailAndPassword(auth, data.email, data.password);
         loginWithRole(result.user, type);
         navigate(type === "doctor" ? "/doctor/dashboard" : "/patient/dashboard");
       } else {
-        if (formData.password !== formData.confirmPassword) {
-          throw new Error("Passwords do not match");
-        }
-        const result = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
-        await updateProfile(result.user, { displayName: formData.fullName });
+        const result = await createUserWithEmailAndPassword(auth, data.email, data.password);
+        await updateProfile(result.user, { displayName: data.fullName });
         loginWithRole(result.user, type);
         navigate(type === "doctor" ? "/doctor/dashboard" : "/patient/dashboard");
       }
     } catch (err) {
-      setError(err.message);
+      setAuthError(err.message);
     } finally {
       setIsLoading(false);
     }
@@ -137,6 +158,7 @@ const AuthComponent = ({ type }) => {
 
         <div className="space-y-4">
           <Button
+            type="button"
             variant="outline"
             className={cn(
               "w-full h-11 transition-all border-none font-medium",
@@ -181,53 +203,49 @@ const AuthComponent = ({ type }) => {
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             {!isLogin && (
               <div className="space-y-2">
                 <label className={cn("text-sm ml-1", isDarkMode ? "text-gray-400" : "text-gray-500")}>Full Name</label>
                 <Input
-                  name="fullName"
+                  {...register("fullName")}
                   placeholder="John Doe"
-                  value={formData.fullName}
-                  onChange={handleChange}
-                  required
                   className={cn(
                     "h-11 focus:ring-cyan-500/20",
-                    isDarkMode ? "bg-white/5 border-white/10 text-white" : "bg-gray-50 border-gray-200 text-gray-900"
+                    isDarkMode ? "bg-white/5 border-white/10 text-white" : "bg-gray-50 border-gray-200 text-gray-900",
+                    errors.fullName && "border-red-500/50"
                   )}
                 />
+                {errors.fullName && <p className="text-red-400 text-xs ml-1">{errors.fullName.message}</p>}
               </div>
             )}
 
             <div className="space-y-2">
               <label className={cn("text-sm ml-1", isDarkMode ? "text-gray-400" : "text-gray-500")}>Email Address</label>
               <Input
-                name="email"
+                {...register("email")}
                 type="email"
                 placeholder="name@example.com"
-                value={formData.email}
-                onChange={handleChange}
-                required
                 className={cn(
                   "h-11 focus:ring-cyan-500/20",
-                  isDarkMode ? "bg-white/5 border-white/10 text-white" : "bg-gray-50 border-gray-200 text-gray-900"
+                  isDarkMode ? "bg-white/5 border-white/10 text-white" : "bg-gray-50 border-gray-200 text-gray-900",
+                  errors.email && "border-red-500/50"
                 )}
               />
+              {errors.email && <p className="text-red-400 text-xs ml-1">{errors.email.message}</p>}
             </div>
 
             <div className="space-y-2">
               <label className={cn("text-sm ml-1", isDarkMode ? "text-gray-400" : "text-gray-500")}>Password</label>
               <div className="relative">
                 <Input
-                  name="password"
+                  {...register("password")}
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
-                  value={formData.password}
-                  onChange={handleChange}
-                  required
                   className={cn(
                     "h-11 focus:ring-cyan-500/20 pr-10",
-                    isDarkMode ? "bg-white/5 border-white/10 text-white" : "bg-gray-50 border-gray-200 text-gray-900"
+                    isDarkMode ? "bg-white/5 border-white/10 text-white" : "bg-gray-50 border-gray-200 text-gray-900",
+                    errors.password && "border-red-500/50"
                   )}
                 />
                 <button
@@ -238,30 +256,30 @@ const AuthComponent = ({ type }) => {
                   {showPassword ? <Lucide.EyeOff className="w-4 h-4" /> : <Lucide.Eye className="w-4 h-4" />}
                 </button>
               </div>
+              {errors.password && <p className="text-red-400 text-xs ml-1">{errors.password.message}</p>}
             </div>
 
             {!isLogin && (
               <div className="space-y-2">
                 <label className={cn("text-sm ml-1", isDarkMode ? "text-gray-400" : "text-gray-500")}>Confirm Password</label>
                 <Input
-                  name="confirmPassword"
+                  {...register("confirmPassword")}
                   type="password"
                   placeholder="••••••••"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  required
                   className={cn(
                     "h-11 focus:ring-cyan-500/20",
-                    isDarkMode ? "bg-white/5 border-white/10 text-white" : "bg-gray-50 border-gray-200 text-gray-900"
+                    isDarkMode ? "bg-white/5 border-white/10 text-white" : "bg-gray-50 border-gray-200 text-gray-900",
+                    errors.confirmPassword && "border-red-500/50"
                   )}
                 />
+                {errors.confirmPassword && <p className="text-red-400 text-xs ml-1">{errors.confirmPassword.message}</p>}
               </div>
             )}
 
-            {error && (
+            {(authError || (errors.root && errors.root.message)) && (
               <div className="text-red-400 text-sm mt-2 flex items-start gap-2 bg-red-400/10 p-3 rounded-lg border border-red-400/20">
                 <Lucide.AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-                <span>{error}</span>
+                <span>{authError || errors.root.message}</span>
               </div>
             )}
 
@@ -279,6 +297,7 @@ const AuthComponent = ({ type }) => {
                 type="button"
                 onClick={async () => {
                   setIsLoading(true);
+                  setAuthError("");
                   try {
                     const demoEmail = type === "doctor" ? "doctor@demo.com" : "patient@demo.com";
                     const demoPass = "password123";
@@ -286,7 +305,7 @@ const AuthComponent = ({ type }) => {
                     loginWithRole(result.user, type);
                     navigate(type === "doctor" ? "/doctor/dashboard" : "/patient/dashboard");
                   } catch (err) {
-                    setError("Demo account not available. Please try standard login.");
+                    setAuthError("Demo account not available. Please try standard login.");
                   } finally {
                     setIsLoading(false);
                   }

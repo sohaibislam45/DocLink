@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { fetchDoctors } from '../../api/doctors';
 import DoctorCard from './DoctorCard';
@@ -6,26 +6,14 @@ import { Button } from '../ui/Button';
 import { Skeleton } from '../ui/Skeleton';
 import { AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 
 const FeaturedDoctorsSection = () => {
-  const [doctors, setDoctors] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    const loadDoctors = async () => {
-      try {
-        setLoading(true);
-        const data = await fetchDoctors({ minRating: 4.5 });
-        setDoctors(data.slice(0, 6));
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadDoctors();
-  }, []);
+  const { data: doctors = [], isLoading: loading, error } = useQuery({
+    queryKey: ['featuredDoctors'],
+    queryFn: () => fetchDoctors({ minRating: 4.5 }),
+    select: (data) => data.slice(0, 6),
+  });
 
   const containerVariants = {
     hidden: { opacity: 0 },

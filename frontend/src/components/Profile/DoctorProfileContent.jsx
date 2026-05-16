@@ -13,30 +13,26 @@ import ConnectModal from '../common/ConnectModal';
 import { Skeleton } from '../ui/Skeleton';
 import { AlertCircle, Video, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useQuery } from '@tanstack/react-query';
 
 const DoctorProfileContent = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [doctor, setDoctor] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [showIntakeForm, setShowIntakeForm] = useState(false);
 
   useEffect(() => {
     window.scrollTo(0, 0);
-    const loadDoctor = async () => {
-      try {
-        setLoading(true);
-        const data = await fetchDoctorById(id);
-        setDoctor(data);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadDoctor();
-  }, [id]);
+  }, []);
+
+  const { 
+    data: doctor, 
+    isLoading: loading, 
+    error: queryError 
+  } = useQuery({
+    queryKey: ['doctor', id],
+    queryFn: () => fetchDoctorById(id),
+    enabled: !!id,
+  });
 
   // Real-time socket queue hook
   const queueState = useSocketQueue(doctor);
@@ -66,13 +62,13 @@ const DoctorProfileContent = () => {
     );
   }
 
-  if (error || !doctor) {
+  if (queryError || !doctor) {
     return (
       <div className="min-h-screen bg-background-primary pt-32 text-center flex flex-col items-center">
         <div className="bg-red-500/10 p-6 rounded-full mb-4">
           <AlertCircle className="w-12 h-12 text-red-500" />
         </div>
-        <h2 className="text-2xl font-bold mb-2">{error || "Doctor not found"}</h2>
+        <h2 className="text-2xl font-bold mb-2">{queryError?.message || "Doctor not found"}</h2>
         <Button onClick={() => navigate('/doctors')} className="mt-4">
           Back to Doctors
         </Button>

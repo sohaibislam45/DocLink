@@ -8,59 +8,87 @@ import { Button } from "../../components/ui/Button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/Select";
 import { Skeleton } from "../../components/ui/Skeleton";
 import Swal from "sweetalert2";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+
+const profileSchema = z.object({
+  fullName: z.string().min(2, "Full name must be at least 2 characters"),
+  phone: z.string().min(10, "Phone number must be at least 10 characters"),
+  dob: z.string().min(1, "Date of birth is required"),
+  gender: z.string().min(1, "Gender is required"),
+  bloodType: z.string().min(1, "Blood type is required"),
+  allergies: z.string().optional(),
+});
 
 const PatientProfile = () => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const fileInputRef = useRef(null);
-  const [loading, setLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
 
-  const [formData, setFormData] = useState({
-    fullName: "",
-    email: "",
-    phone: "",
-    dob: "",
-    gender: "",
-    bloodType: "",
-    allergies: "",
+  const { data: profile, isLoading: loading, error: queryError } = useQuery({
+    queryKey: ["patientProfile", user?.uid],
+    queryFn: fetchPatientProfile,
+    enabled: !!user,
+  });
+
+  const {
+    register,
+    handleSubmit,
+    control,
+    reset,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(profileSchema),
+    defaultValues: {
+      fullName: "",
+      phone: "",
+      dob: "",
+      gender: "",
+      bloodType: "",
+      allergies: "",
+    },
   });
 
   useEffect(() => {
-    const loadProfile = async () => {
-      try {
-        setLoading(true);
-        const profile = await fetchPatientProfile();
-        if (profile) {
-          setFormData({
-            fullName: profile.fullName || user?.displayName || "",
-            email: profile.email || user?.email || "",
-            phone: profile.phone || "",
-            dob: profile.dob ? profile.dob.split('T')[0] : "",
-            gender: profile.gender || "",
-            bloodType: profile.bloodType || "",
-            allergies: profile.allergies || "",
-          });
-          setPhotoPreview(profile.photoURL);
-        }
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-    if (user) loadProfile();
-  }, [user]);
+    if (profile) {
+      reset({
+        fullName: profile.fullName || user?.displayName || "",
+        phone: profile.phone || "",
+        dob: profile.dob ? profile.dob.split('T')[0] : "",
+        gender: profile.gender || "",
+        bloodType: profile.bloodType || "",
+        allergies: profile.allergies || "",
+      });
+      setPhotoPreview(profile.photoURL);
+    }
+  }, [profile, user, reset]);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleSelectChange = (name, value) => {
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
+  const updateMutation = useMutation({
+    mutationFn: updatePatientProfile,
+    onSuccess: () => {
+      queryClient.invalidateQueries(["patientProfile", user?.uid]);
+      Swal.fire({
+        title: "Profile Updated!",
+        text: "Your health profile has been successfully updated.",
+        icon: "success",
+        background: "#0A0F1E",
+        color: "#fff",
+        confirmButtonColor: "#06b6d4",
+      });
+    },
+    onError: (err) => {
+      Swal.fire({
+        title: "Error",
+        text: err.message || "Failed to update profile",
+        icon: "error",
+        background: "#0A0F1E",
+        color: "#fff",
+      });
+    },
+  });
 
   const handlePhotoClick = () => {
     fileInputRef.current.click();
@@ -74,29 +102,8 @@ const PatientProfile = () => {
     }
   };
 
-  const handleSave = async () => {
-    try {
-      setIsSaving(true);
-      await updatePatientProfile(formData);
-      Swal.fire({
-        title: "Profile Updated!",
-        text: "Your health profile has been successfully updated.",
-        icon: "success",
-        background: "#0A0F1E",
-        color: "#fff",
-        confirmButtonColor: "#06b6d4",
-      });
-    } catch (err) {
-      Swal.fire({
-        title: "Error",
-        text: err.message || "Failed to update profile",
-        icon: "error",
-        background: "#0A0F1E",
-        color: "#fff",
-      });
-    } finally {
-      setIsSaving(false);
-    }
+  const onSubmit = (data) => {
+    updateMutation.mutate(data);
   };
 
   const formatDate = (dateString) => {
@@ -128,17 +135,17 @@ const PatientProfile = () => {
         <p className="text-gray-500">Manage your medical identity and account security.</p>
       </div>
 
-      {error && (
+      {queryError && (
         <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 flex items-center gap-3">
           <Lucide.AlertCircle className="w-5 h-5" />
-          <p>{error}</p>
+          <p>{queryError.message}</p>
         </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left: Profile Form */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-8">
+          <form onSubmit={handleSubmit(onSubmit)} className="bg-white/5 border border-white/10 rounded-2xl p-8">
             <h3 className="text-lg font-semibold text-white mb-8 flex items-center gap-2">
               <Lucide.UserCircle className="w-5 h-5 text-cyan-400" />
               Personal Information
@@ -152,7 +159,7 @@ const PatientProfile = () => {
                     <img src={photoPreview || user?.photoURL} alt="Profile" className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white text-4xl font-bold">
-                      {formData.fullName[0]?.toUpperCase() || "?"}
+                      {profile?.fullName?.[0]?.toUpperCase() || user?.displayName?.[0]?.toUpperCase() || "?"}
                     </div>
                   )}
                 </div>
@@ -171,10 +178,10 @@ const PatientProfile = () => {
                 <h4 className="text-white font-semibold">Profile Photo</h4>
                 <p className="text-gray-500 text-sm">JPG, GIF or PNG. Max size of 800K</p>
                 <div className="flex items-center gap-3 justify-center sm:justify-start">
-                  <Button variant="outline" size="sm" onClick={handlePhotoClick} className="bg-white/5 border-white/10 text-white hover:bg-white/10">
+                  <Button type="button" variant="outline" size="sm" onClick={handlePhotoClick} className="bg-white/5 border-white/10 text-white hover:bg-white/10">
                     Upload New
                   </Button>
-                  <Button variant="ghost" size="sm" className="text-gray-500 hover:text-red-400" onClick={() => setPhotoPreview(null)}>
+                  <Button type="button" variant="ghost" size="sm" className="text-gray-500 hover:text-red-400" onClick={() => setPhotoPreview(null)}>
                     Remove
                   </Button>
                 </div>
@@ -185,16 +192,15 @@ const PatientProfile = () => {
               <div className="space-y-2">
                 <label className="text-sm text-gray-400 font-medium">Full Name</label>
                 <Input
-                  name="fullName"
-                  value={formData.fullName}
-                  onChange={handleChange}
-                  className="bg-white/5 border-white/10 text-white focus:ring-cyan-500/30 h-11"
+                  {...register("fullName")}
+                  className={`bg-white/5 border-white/10 text-white focus:ring-cyan-500/30 h-11 ${errors.fullName ? "border-red-500/50" : ""}`}
                 />
+                {errors.fullName && <p className="text-red-500 text-xs mt-1">{errors.fullName.message}</p>}
               </div>
               <div className="space-y-2">
                 <label className="text-sm text-gray-400 font-medium opacity-50">Email Address (Read Only)</label>
                 <Input
-                  value={formData.email}
+                  value={profile?.email || user?.email || ""}
                   disabled
                   className="bg-white/5 border-white/10 text-gray-500 h-11 cursor-not-allowed"
                 />
@@ -202,55 +208,65 @@ const PatientProfile = () => {
               <div className="space-y-2">
                 <label className="text-sm text-gray-400 font-medium">Phone Number</label>
                 <Input
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  className="bg-white/5 border-white/10 text-white focus:ring-cyan-500/30 h-11"
+                  {...register("phone")}
+                  className={`bg-white/5 border-white/10 text-white focus:ring-cyan-500/30 h-11 ${errors.phone ? "border-red-500/50" : ""}`}
                 />
+                {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>}
               </div>
               <div className="space-y-2">
                 <label className="text-sm text-gray-400 font-medium">Date of Birth</label>
                 <Input
-                  name="dob"
+                  {...register("dob")}
                   type="date"
-                  value={formData.dob}
-                  onChange={handleChange}
-                  className="bg-white/5 border-white/10 text-white focus:ring-cyan-500/30 h-11 [color-scheme:dark]"
+                  className={`bg-white/5 border-white/10 text-white focus:ring-cyan-500/30 h-11 [color-scheme:dark] ${errors.dob ? "border-red-500/50" : ""}`}
                 />
+                {errors.dob && <p className="text-red-500 text-xs mt-1">{errors.dob.message}</p>}
               </div>
               <div className="space-y-2">
                 <label className="text-sm text-gray-400 font-medium">Gender</label>
-                <Select value={formData.gender} onValueChange={(val) => handleSelectChange("gender", val)}>
-                  <SelectTrigger className="bg-white/5 border-white/10 text-white h-11">
-                    <SelectValue placeholder="Select gender" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-[#1A1F2E] border-white/10 text-white">
-                    <SelectItem value="male">Male</SelectItem>
-                    <SelectItem value="female">Female</SelectItem>
-                    <SelectItem value="non-binary">Non-binary</SelectItem>
-                    <SelectItem value="prefer-not">Prefer not to say</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Controller
+                  name="gender"
+                  control={control}
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger className={`bg-white/5 border-white/10 text-white h-11 ${errors.gender ? "border-red-500/50" : ""}`}>
+                        <SelectValue placeholder="Select gender" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-[#1A1F2E] border-white/10 text-white">
+                        <SelectItem value="male">Male</SelectItem>
+                        <SelectItem value="female">Female</SelectItem>
+                        <SelectItem value="non-binary">Non-binary</SelectItem>
+                        <SelectItem value="prefer-not">Prefer not to say</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                {errors.gender && <p className="text-red-500 text-xs mt-1">{errors.gender.message}</p>}
               </div>
               <div className="space-y-2">
                 <label className="text-sm text-gray-400 font-medium">Blood Type</label>
-                <Select value={formData.bloodType} onValueChange={(val) => handleSelectChange("bloodType", val)}>
-                  <SelectTrigger className="bg-white/5 border-white/10 text-white h-11">
-                    <SelectValue placeholder="Select blood type" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-[#1A1F2E] border-white/10 text-white">
-                    {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "Unknown"].map((type) => (
-                      <SelectItem key={type} value={type}>{type}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Controller
+                  name="bloodType"
+                  control={control}
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger className={`bg-white/5 border-white/10 text-white h-11 ${errors.bloodType ? "border-red-500/50" : ""}`}>
+                        <SelectValue placeholder="Select blood type" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-[#1A1F2E] border-white/10 text-white">
+                        {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "Unknown"].map((type) => (
+                          <SelectItem key={type} value={type}>{type}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                {errors.bloodType && <p className="text-red-500 text-xs mt-1">{errors.bloodType.message}</p>}
               </div>
               <div className="space-y-2 md:col-span-2">
                 <label className="text-sm text-gray-400 font-medium">Allergies</label>
                 <textarea
-                  name="allergies"
-                  value={formData.allergies}
-                  onChange={handleChange}
+                  {...register("allergies")}
                   placeholder="List any known allergies..."
                   className="w-full bg-white/5 border border-white/10 text-white rounded-xl p-3 min-h-[100px] focus:outline-none focus:ring-2 focus:ring-cyan-500/30 transition-all text-sm resize-none"
                 />
@@ -258,11 +274,11 @@ const PatientProfile = () => {
             </div>
 
             <Button
-              onClick={handleSave}
-              disabled={isSaving}
+              type="submit"
+              disabled={updateMutation.isLoading}
               className="mt-10 w-full bg-cyan-500 hover:bg-cyan-600 text-white h-12 font-bold shadow-lg shadow-cyan-500/20 active:scale-[0.98] transition-all"
             >
-              {isSaving ? (
+              {updateMutation.isLoading ? (
                 <>
                   <Lucide.Loader2 className="w-5 h-5 animate-spin mr-2" />
                   Updating Health Profile...
@@ -271,7 +287,7 @@ const PatientProfile = () => {
                 "Save Profile Changes"
               )}
             </Button>
-          </div>
+          </form>
         </div>
 
         {/* Right: Account Info & Security */}

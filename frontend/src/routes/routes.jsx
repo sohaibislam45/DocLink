@@ -11,6 +11,11 @@ import { AuthProvider } from "../context/AuthContext";
 import { ThemeProvider } from "../context/ThemeContext";
 import { DoctorSearchProvider } from "../context/DoctorSearchContext";
 
+// TanStack Query
+import { QueryClientProvider } from "@tanstack/react-query";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import { queryClient } from "../lib/queryClient";
+
 // Auth Pages
 import PatientLoginPage from "../pages/auth/PatientLoginPage";
 import DoctorLoginPage from "../pages/auth/DoctorLoginPage";
@@ -35,13 +40,16 @@ import DoctorAvailabilityPage from "../pages/doctor/DoctorAvailabilityPage";
 import CallRoomPage from "../pages/CallRoomPage";
 
 const RootLayout = () => (
-  <AuthProvider>
-    <ThemeProvider>
-      <DoctorSearchProvider>
-        <Outlet />
-      </DoctorSearchProvider>
-    </ThemeProvider>
-  </AuthProvider>
+  <QueryClientProvider client={queryClient}>
+    <AuthProvider>
+      <ThemeProvider>
+        <DoctorSearchProvider>
+          <Outlet />
+        </DoctorSearchProvider>
+      </ThemeProvider>
+    </AuthProvider>
+    <ReactQueryDevtools initialIsOpen={false} />
+  </QueryClientProvider>
 );
 
 const routes = createBrowserRouter([

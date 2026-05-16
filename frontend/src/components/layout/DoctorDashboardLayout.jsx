@@ -5,6 +5,7 @@ import { useAuth } from "../../context/AuthContext";
 import * as Lucide from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/Avatar";
 import { cn } from "../../lib/utils";
+import { getSocket } from "../../lib/socket.js";
 import useDoctorOnlineStatus from "../../hooks/useDoctorOnlineStatus";
 
 const SidebarItem = ({ icon: Icon, label, href, active, external, badge }) => {

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { fetchDoctors } from '../api/doctors';
+import { useQuery } from '@tanstack/react-query';
 
 const DoctorSearchContext = createContext();
 
@@ -16,9 +17,6 @@ export const DoctorSearchProvider = ({ children }) => {
   const location = useLocation();
   const initialSpecialty = location.state?.specialty || 'All';
 
-  const [doctors, setDoctors] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('relevance');
   const [filters, setFilters] = useState({
@@ -35,33 +33,26 @@ export const DoctorSearchProvider = ({ children }) => {
     }
   }, [location.state?.specialty]);
 
-  const loadDoctors = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // Map frontend filters to API params
-      const apiFilters = {
-        specialty: filters.specialty,
-        minRating: filters.rating,
-        maxFee: filters.priceRange[1],
-        availableToday: filters.availability === 'today',
-        availableThisWeek: filters.availability === 'week',
-        sortBy: sortBy === 'rating' ? 'rating' : (sortBy === 'price-low' ? 'fee_asc' : (sortBy === 'price-high' ? 'fee_desc' : null))
-      };
+  // Map frontend filters to API params
+  const apiFilters = {
+    specialty: filters.specialty,
+    minRating: filters.rating,
+    maxFee: filters.priceRange[1],
+    availableToday: filters.availability === 'today',
+    availableThisWeek: filters.availability === 'week',
+    sortBy: sortBy === 'rating' ? 'rating' : (sortBy === 'price-low' ? 'fee_asc' : (sortBy === 'price-high' ? 'fee_desc' : null))
+  };
 
-      const data = await fetchDoctors(apiFilters);
-      setDoctors(data);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [filters, sortBy]);
-
-  useEffect(() => {
-    loadDoctors();
-  }, [loadDoctors]);
+  const { 
+    data: doctors = [], 
+    isLoading: loading, 
+    error: queryError, 
+    refetch: retry 
+  } = useQuery({
+    queryKey: ['doctors', apiFilters],
+    queryFn: () => fetchDoctors(apiFilters),
+    keepPreviousData: true,
+  });
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value }));
@@ -83,7 +74,6 @@ export const DoctorSearchProvider = ({ children }) => {
                         doc.specialty.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesGender = filters.gender === 'All' || doc.gender === filters.gender;
     
-    // Note: Other filters (specialty, rating, price, availability) are handled by the API
     return matchesSearch && matchesGender;
   });
 
@@ -97,8 +87,8 @@ export const DoctorSearchProvider = ({ children }) => {
     handleReset,
     filteredDoctors,
     loading,
-    error,
-    retry: loadDoctors
+    error: queryError?.message || null,
+    retry
   };
 
   return (
