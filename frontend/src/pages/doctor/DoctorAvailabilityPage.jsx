@@ -1,6 +1,9 @@
 import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import * as Lucide from "lucide-react";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import { useAuth } from "../../context/AuthContext";
 import { Input } from "../../components/ui/Input";
 import { Button } from "../../components/ui/Button";
@@ -29,6 +32,16 @@ const DEFAULT_HOURS = {
   Sunday: { enabled: false, from: "09:00", to: "17:00" },
 };
 
+const doctorProfileSchema = z.object({
+  fullName: z.string().min(2, "Full name must be at least 2 characters"),
+  phone: z.string().min(6, "Please enter a valid phone number"),
+  specialty: z.string().min(1, "Specialty is required"),
+  experience: z.coerce.number().min(0, "Experience cannot be negative"),
+  fee: z.coerce.number().min(0, "Fee cannot be negative"),
+  bio: z.string().max(500, "Bio must be less than 500 characters"),
+  education: z.string().min(2, "Education and qualifications are required"),
+});
+
 const DoctorAvailabilityPage = () => {
   const { user } = useAuth();
   const { isOnline, toggleOnline } = useDoctorOnlineStatus();
@@ -53,22 +66,27 @@ const DoctorAvailabilityPage = () => {
   const [tags, setTags] = useState(["English"]);
   const [tagInput, setTagInput] = useState("");
 
-  const [profile, setProfile] = useState({
-    fullName: user?.displayName || "",
-    email: user?.email || "",
-    phone: "+880 1712 345678",
-    specialty: "Cardiology",
-    experience: "8",
-    fee: "80",
-    bio: "",
-    education: "",
+  const {
+    register,
+    handleSubmit,
+    control,
+    watch,
+    formState: { errors, isValid },
+  } = useForm({
+    resolver: zodResolver(doctorProfileSchema),
+    defaultValues: {
+      fullName: user?.displayName || "",
+      phone: "+880 1712 345678",
+      specialty: "Cardiology",
+      experience: "8",
+      fee: "80",
+      bio: "",
+      education: "",
+    },
+    mode: "onChange",
   });
-  const [bioCount, setBioCount] = useState(0);
 
-  const handleProfileChange = (field, value) => {
-    setProfile((prev) => ({ ...prev, [field]: value }));
-    if (field === "bio") setBioCount(value.length);
-  };
+  const bioValue = watch("bio") || "";
 
   const toggleDay = (day) => {
     setHours((prev) => ({
@@ -115,18 +133,7 @@ const DoctorAvailabilityPage = () => {
     }, 1500);
   };
 
-  const saveProfile = () => {
-    if (!profile.fullName.trim() || !profile.specialty) {
-      Swal.fire({
-        title: "Validation Error",
-        text: "Name and specialty are required.",
-        icon: "warning",
-        background: "#0A0F1E",
-        color: "#fff",
-        confirmButtonColor: "#2563eb",
-      });
-      return;
-    }
+  const saveProfile = (data) => {
     setIsSavingProfile(true);
     setTimeout(() => {
       setIsSavingProfile(false);
@@ -270,7 +277,7 @@ const DoctorAvailabilityPage = () => {
           initial={{ x: 30, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           transition={{ duration: 0.4 }}
-          className="xl:col-span-5 space-y-5"
+          className="xl:col-span-5"
         >
           <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-5">
             <h3 className="text-white font-semibold flex items-center gap-2">
@@ -299,97 +306,133 @@ const DoctorAvailabilityPage = () => {
               </Button>
             </div>
 
-            {/* Form fields */}
-            <div className="space-y-3">
-              <div className="space-y-1.5">
-                <label className="text-xs text-gray-400 font-medium">Full Name</label>
-                <Input value={profile.fullName} onChange={(e) => handleProfileChange("fullName", e.target.value)} className="bg-white/5 border-white/10 text-white h-10" />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs text-gray-400 font-medium opacity-50">Email (Read Only)</label>
-                <Input value={profile.email} disabled className="bg-white/5 border-white/10 text-gray-500 h-10 cursor-not-allowed" />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs text-gray-400 font-medium">Phone Number</label>
-                <Input value={profile.phone} onChange={(e) => handleProfileChange("phone", e.target.value)} className="bg-white/5 border-white/10 text-white h-10" />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs text-gray-400 font-medium">Specialty</label>
-                <Select value={profile.specialty} onValueChange={(v) => handleProfileChange("specialty", v)}>
-                  <SelectTrigger className="bg-white/5 border-white/10 text-white h-10">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-[#1A1F2E] border-white/10 text-white">
-                    {loadingSpecs ? (
-                      <SelectItem disabled value="loading">Loading specialties...</SelectItem>
-                    ) : (
-                      specialties.map((s) => (
-                        <SelectItem key={s.id || s._id} value={s.name}>{s.name}</SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
+            <form onSubmit={handleSubmit(saveProfile)} className="space-y-4">
+              {/* Form fields */}
+              <div className="space-y-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs text-gray-400 font-medium">Years of Experience</label>
-                  <Input type="number" value={profile.experience} onChange={(e) => handleProfileChange("experience", e.target.value)} className="bg-white/5 border-white/10 text-white h-10" />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs text-gray-400 font-medium">Consultation Fee ($)</label>
-                  <Input type="number" value={profile.fee} onChange={(e) => handleProfileChange("fee", e.target.value)} className="bg-white/5 border-white/10 text-white h-10" />
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs text-gray-400 font-medium">Bio / About (max 500)</label>
-                <textarea
-                  value={profile.bio}
-                  onChange={(e) => handleProfileChange("bio", e.target.value.slice(0, 500))}
-                  placeholder="Tell patients about yourself..."
-                  className="w-full bg-white/5 border border-white/10 text-white rounded-xl p-3 min-h-[90px] focus:outline-none focus:ring-1 focus:ring-cyan-500/30 text-sm resize-none placeholder:text-gray-600"
-                />
-                <p className="text-xs text-gray-600 text-right">{profile.bio.length} / 500</p>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs text-gray-400 font-medium">Education & Qualifications</label>
-                <textarea
-                  value={profile.education}
-                  onChange={(e) => handleProfileChange("education", e.target.value)}
-                  placeholder="e.g. MBBS - Dhaka Medical College (2008), MD Cardiology - BSMMU (2013)"
-                  className="w-full bg-white/5 border border-white/10 text-white rounded-xl p-3 min-h-[70px] focus:outline-none focus:ring-1 focus:ring-cyan-500/30 text-sm resize-none placeholder:text-gray-600"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs text-gray-400 font-medium">Languages Spoken</label>
-                <div className="flex flex-wrap gap-2 min-h-[40px] bg-white/5 border border-white/10 rounded-xl p-2">
-                  {tags.map((tag) => (
-                    <span key={tag} className="flex items-center gap-1 bg-cyan-500/15 text-cyan-400 text-xs px-2.5 py-1 rounded-full border border-cyan-500/20">
-                      {tag}
-                      <button onClick={() => removeTag(tag)} className="hover:text-red-400 ml-0.5">×</button>
-                    </span>
-                  ))}
-                  <input
-                    value={tagInput}
-                    onChange={(e) => setTagInput(e.target.value)}
-                    onKeyDown={addTag}
-                    placeholder="Press Enter to add..."
-                    className="flex-1 min-w-[80px] bg-transparent text-white text-xs outline-none placeholder:text-gray-600 px-1"
+                  <label className="text-xs text-gray-400 font-medium">Full Name</label>
+                  <Input
+                    {...register("fullName")}
+                    className={cn("bg-white/5 border-white/10 text-white h-10", errors.fullName && "border-red-500/50")}
                   />
+                  {errors.fullName && <p className="text-red-400 text-xs">{errors.fullName.message}</p>}
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs text-gray-400 font-medium opacity-50">Email (Read Only)</label>
+                  <Input value={user?.email || ""} disabled className="bg-white/5 border-white/10 text-gray-500 h-10 cursor-not-allowed" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs text-gray-400 font-medium">Phone Number</label>
+                  <Input
+                    {...register("phone")}
+                    className={cn("bg-white/5 border-white/10 text-white h-10", errors.phone && "border-red-500/50")}
+                  />
+                  {errors.phone && <p className="text-red-400 text-xs">{errors.phone.message}</p>}
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs text-gray-400 font-medium">Specialty</label>
+                  <Controller
+                    name="specialty"
+                    control={control}
+                    render={({ field }) => (
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger className={cn("bg-white/5 border-white/10 text-white h-10", errors.specialty && "border-red-500/50")}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#1A1F2E] border-white/10 text-white">
+                          {loadingSpecs ? (
+                            <SelectItem disabled value="loading">Loading specialties...</SelectItem>
+                          ) : (
+                            specialties.map((s) => (
+                              <SelectItem key={s.id || s._id} value={s.name}>{s.name}</SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  {errors.specialty && <p className="text-red-400 text-xs">{errors.specialty.message}</p>}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-gray-400 font-medium">Years of Experience</label>
+                    <Input
+                      type="number"
+                      {...register("experience")}
+                      className={cn("bg-white/5 border-white/10 text-white h-10", errors.experience && "border-red-500/50")}
+                    />
+                    {errors.experience && <p className="text-red-400 text-xs">{errors.experience.message}</p>}
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-gray-400 font-medium">Consultation Fee ($)</label>
+                    <Input
+                      type="number"
+                      {...register("fee")}
+                      className={cn("bg-white/5 border-white/10 text-white h-10", errors.fee && "border-red-500/50")}
+                    />
+                    {errors.fee && <p className="text-red-400 text-xs">{errors.fee.message}</p>}
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs text-gray-400 font-medium">Bio / About (max 500)</label>
+                  <textarea
+                    {...register("bio")}
+                    maxLength={500}
+                    placeholder="Tell patients about yourself..."
+                    className={cn(
+                      "w-full bg-white/5 border border-white/10 text-white rounded-xl p-3 min-h-[90px] focus:outline-none focus:ring-1 focus:ring-cyan-500/30 text-sm resize-none placeholder:text-gray-600",
+                      errors.bio && "border-red-500/50"
+                    )}
+                  />
+                  <div className="flex justify-between text-xs">
+                    <span className="text-red-400">{errors.bio?.message}</span>
+                    <span className="text-gray-600">{bioValue.length} / 500</span>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs text-gray-400 font-medium">Education & Qualifications</label>
+                  <textarea
+                    {...register("education")}
+                    placeholder="e.g. MBBS - Dhaka Medical College (2008), MD Cardiology - BSMMU (2013)"
+                    className={cn(
+                      "w-full bg-white/5 border border-white/10 text-white rounded-xl p-3 min-h-[70px] focus:outline-none focus:ring-1 focus:ring-cyan-500/30 text-sm resize-none placeholder:text-gray-600",
+                      errors.education && "border-red-500/50"
+                    )}
+                  />
+                  {errors.education && <p className="text-red-400 text-xs">{errors.education.message}</p>}
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs text-gray-400 font-medium">Languages Spoken</label>
+                  <div className="flex flex-wrap gap-2 min-h-[40px] bg-white/5 border border-white/10 rounded-xl p-2">
+                    {tags.map((tag) => (
+                      <span key={tag} className="flex items-center gap-1 bg-cyan-500/15 text-cyan-400 text-xs px-2.5 py-1 rounded-full border border-cyan-500/20">
+                        {tag}
+                        <button type="button" onClick={() => removeTag(tag)} className="hover:text-red-400 ml-0.5">×</button>
+                      </span>
+                    ))}
+                    <input
+                      value={tagInput}
+                      onChange={(e) => setTagInput(e.target.value)}
+                      onKeyDown={addTag}
+                      placeholder="Press Enter to add..."
+                      className="flex-1 min-w-[80px] bg-transparent text-white text-xs outline-none placeholder:text-gray-600 px-1"
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <Button
-              onClick={saveProfile}
-              disabled={isSavingProfile}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white border-none h-11 font-semibold shadow-lg shadow-blue-600/20"
-            >
-              {isSavingProfile ? (
-                <><Lucide.Loader2 className="w-4 h-4 animate-spin mr-2" />Saving Profile...</>
-              ) : (
-                <><Lucide.Save className="w-4 h-4 mr-2" />Save Profile</>
-              )}
-            </Button>
+              <Button
+                type="submit"
+                disabled={isSavingProfile || !isValid}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white border-none h-11 font-semibold shadow-lg shadow-blue-600/20"
+              >
+                {isSavingProfile ? (
+                  <><Lucide.Loader2 className="w-4 h-4 animate-spin mr-2" />Saving Profile...</>
+                ) : (
+                  <><Lucide.Save className="w-4 h-4 mr-2" />Save Profile</>
+                )}
+              </Button>
+            </form>
 
             {/* Security section */}
             {user?.providerData?.[0]?.providerId === "password" && (

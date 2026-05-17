@@ -3,6 +3,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import * as Lucide from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { jsPDF } from "jspdf";
+import { useForm, useFieldArray, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import { Input } from "../../components/ui/Input";
 import { Button } from "../../components/ui/Button";
 import {
@@ -33,96 +36,104 @@ const FREQ_OPTIONS = [
   "As needed",
 ];
 
-const emptyMedicine = () => ({
-  id: crypto.randomUUID(),
-  name: "",
-  dosage: "",
-  frequency: "Once daily",
-  duration: "",
-});
-
 const todayFormatted = () => {
   const d = new Date();
   return d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 };
 
+const medicineSchema = z.object({
+  name: z.string().min(1, "Medicine name is required"),
+  dosage: z.string().min(1, "Dosage is required"),
+  frequency: z.string().min(1, "Frequency is required"),
+  duration: z.string().optional().or(z.literal("")),
+});
+
+const prescriptionSchema = z.object({
+  patientName: z.string().min(2, "Patient name must be at least 2 characters"),
+  age: z.string().optional().or(z.literal("")),
+  gender: z.string().optional().or(z.literal("")),
+  diagnosis: z.string().min(2, "Diagnosis is required"),
+  notes: z.string().max(500, "Notes must be less than 500 characters").optional().or(z.literal("")),
+  medicines: z.array(medicineSchema).min(1, "At least one medicine is required"),
+});
+
 const DoctorPrescriptionWriter = () => {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
-
-  const [form, setForm] = useState({
-    patientName: searchParams.get("patient") || "",
-    age: "",
-    gender: "",
-    diagnosis: searchParams.get("reason") || "",
-    notes: "",
-  });
-  const [medicines, setMedicines] = useState([emptyMedicine()]);
   const [generated, setGenerated] = useState(false);
-  const [errors, setErrors] = useState({});
   const [showClearDialog, setShowClearDialog] = useState(false);
 
   const doctorName = user?.displayName || "Doctor";
   const dateStr = todayFormatted();
 
-  const handleFormChange = (field, value) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
-    setErrors((prev) => ({ ...prev, [field]: undefined }));
-  };
+  const {
+    register,
+    handleSubmit,
+    control,
+    watch,
+    reset,
+    formState: { errors, isValid },
+  } = useForm({
+    resolver: zodResolver(prescriptionSchema),
+    defaultValues: {
+      patientName: searchParams.get("patient") || "",
+      age: "",
+      gender: "",
+      diagnosis: searchParams.get("reason") || "",
+      notes: "",
+      medicines: [
+        { name: "", dosage: "", frequency: "Once daily", duration: "" }
+      ],
+    },
+    mode: "onChange",
+  });
 
-  const handleMedChange = (id, field, value) => {
-    setMedicines((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, [field]: value } : m))
-    );
-    setErrors((prev) => ({ ...prev, [`med-${id}-${field}`]: undefined }));
-  };
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: "medicines",
+  });
+
+  const formValues = watch();
+  const medicinesValue = formValues.medicines || [];
+  const notesMax = 500;
+  const notesCount = (formValues.notes || "").length;
 
   const addMedicine = () => {
-    setMedicines((prev) => [...prev, emptyMedicine()]);
+    append({ name: "", dosage: "", frequency: "Once daily", duration: "" });
   };
 
-  const removeMedicine = (id) => {
-    if (medicines.length === 1) return;
-    setMedicines((prev) => prev.filter((m) => m.id !== id));
+  const removeMedicine = (index) => {
+    if (fields.length === 1) return;
+    remove(index);
   };
 
-  const validate = () => {
-    const newErrors = {};
-    if (!form.patientName.trim()) newErrors.patientName = true;
-    if (!form.diagnosis.trim()) newErrors.diagnosis = true;
-    const validMeds = medicines.filter((m) => m.name.trim() && m.dosage.trim());
-    if (validMeds.length === 0) {
-      newErrors.medicines = true;
-      medicines.forEach((m) => {
-        if (!m.name.trim()) newErrors[`med-${m.id}-name`] = true;
-        if (!m.dosage.trim()) newErrors[`med-${m.id}-dosage`] = true;
-      });
-    }
-    return newErrors;
-  };
-
-  const handleGenerate = () => {
-    const newErrors = validate();
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      Swal.fire({
-        title: "Validation Error",
-        text: "Please fill all required fields before generating.",
-        icon: "warning",
-        background: "#0A0F1E",
-        color: "#fff",
-        confirmButtonColor: "#2563eb",
-      });
-      return;
-    }
+  const handleGenerate = (data) => {
     setGenerated(true);
   };
 
+  const onInvalid = (errors) => {
+    Swal.fire({
+      title: "Validation Error",
+      text: "Please fill all required fields before generating.",
+      icon: "warning",
+      background: "#0A0F1E",
+      color: "#fff",
+      confirmButtonColor: "#2563eb",
+    });
+  };
+
   const handleClear = () => {
-    setForm({ patientName: "", age: "", gender: "", diagnosis: "", notes: "" });
-    setMedicines([emptyMedicine()]);
+    reset({
+      patientName: "",
+      age: "",
+      gender: "",
+      diagnosis: "",
+      notes: "",
+      medicines: [
+        { name: "", dosage: "", frequency: "Once daily", duration: "" }
+      ],
+    });
     setGenerated(false);
-    setErrors({});
     setShowClearDialog(false);
   };
 
@@ -147,11 +158,11 @@ const DoctorPrescriptionWriter = () => {
 
     // Patient
     doc.setFontSize(11);
-    doc.text(`Patient: ${form.patientName}`, 20, 50);
-    if (form.age) doc.text(`Age: ${form.age}`, 20, 57);
-    if (form.gender) doc.text(`Gender: ${form.gender}`, 80, 57);
+    doc.text(`Patient: ${formValues.patientName}`, 20, 50);
+    if (formValues.age) doc.text(`Age: ${formValues.age}`, 20, 57);
+    if (formValues.gender) doc.text(`Gender: ${formValues.gender}`, 80, 57);
     doc.setFont("helvetica", "bold");
-    doc.text(`Diagnosis: ${form.diagnosis}`, 20, 67);
+    doc.text(`Diagnosis: ${formValues.diagnosis}`, 20, 67);
     doc.setFont("helvetica", "normal");
 
     // Medicines
@@ -163,7 +174,7 @@ const DoctorPrescriptionWriter = () => {
     doc.setFontSize(10);
 
     let y = 92;
-    medicines.forEach((med, idx) => {
+    medicinesValue.forEach((med, idx) => {
       if (!med.name) return;
       doc.setFont("helvetica", "bold");
       doc.text(`${idx + 1}. ${med.name}`, 25, y);
@@ -173,13 +184,13 @@ const DoctorPrescriptionWriter = () => {
     });
 
     // Notes
-    if (form.notes) {
+    if (formValues.notes) {
       doc.line(20, y, pageWidth - 20, y);
       y += 8;
       doc.setFont("helvetica", "bold");
       doc.text("Notes:", 20, y);
       doc.setFont("helvetica", "italic");
-      const splitNotes = doc.splitTextToSize(form.notes, pageWidth - 40);
+      const splitNotes = doc.splitTextToSize(formValues.notes, pageWidth - 40);
       doc.text(splitNotes, 20, y + 7);
     }
 
@@ -188,7 +199,7 @@ const DoctorPrescriptionWriter = () => {
     doc.setFontSize(9);
     doc.text("Generated by DocLink Telemedicine Portal", 20, 280);
 
-    const safeName = form.patientName.replace(/\s+/g, "_");
+    const safeName = formValues.patientName.replace(/\s+/g, "_");
     const safeDate = dateStr.replace(/\s+/g, "_");
     doc.save(`DocLink_Rx_${safeName}_${safeDate}.pdf`);
   };
@@ -204,9 +215,6 @@ const DoctorPrescriptionWriter = () => {
     });
   };
 
-  const notesMax = 500;
-  const notesCount = form.notes.length;
-
   return (
     <div className="space-y-6">
       <div>
@@ -214,7 +222,7 @@ const DoctorPrescriptionWriter = () => {
         <p className="text-gray-500">Create and issue digital prescriptions to your patients.</p>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-11 gap-6">
+      <form onSubmit={handleSubmit(handleGenerate, onInvalid)} className="grid grid-cols-1 xl:grid-cols-11 gap-6">
         {/* Left: Form */}
         <div className="xl:col-span-6 space-y-5">
           {/* Section 1: Patient Info */}
@@ -229,51 +237,56 @@ const DoctorPrescriptionWriter = () => {
                   Patient Name <span className="text-red-400">*</span>
                 </label>
                 <Input
-                  value={form.patientName}
-                  onChange={(e) => handleFormChange("patientName", e.target.value)}
+                  {...register("patientName")}
                   placeholder="Full name"
                   className={cn(
                     "bg-white/5 border-white/10 text-white h-11",
                     errors.patientName && "border-red-500/60 focus:ring-red-500/20"
                   )}
                 />
+                {errors.patientName && <p className="text-red-400 text-xs">{errors.patientName.message}</p>}
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm text-gray-400 font-medium">Age</label>
                 <Input
                   type="number"
-                  value={form.age}
-                  onChange={(e) => handleFormChange("age", e.target.value)}
+                  {...register("age")}
                   placeholder="e.g. 32"
                   className="bg-white/5 border-white/10 text-white h-11"
                 />
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm text-gray-400 font-medium">Gender</label>
-                <Select value={form.gender} onValueChange={(v) => handleFormChange("gender", v)}>
-                  <SelectTrigger className="bg-white/5 border-white/10 text-white h-11">
-                    <SelectValue placeholder="Select gender" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-[#1A1F2E] border-white/10 text-white">
-                    <SelectItem value="Male">Male</SelectItem>
-                    <SelectItem value="Female">Female</SelectItem>
-                    <SelectItem value="Non-binary">Non-binary</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Controller
+                  name="gender"
+                  control={control}
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger className="bg-white/5 border-white/10 text-white h-11">
+                        <SelectValue placeholder="Select gender" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-[#1A1F2E] border-white/10 text-white">
+                        <SelectItem value="Male">Male</SelectItem>
+                        <SelectItem value="Female">Female</SelectItem>
+                        <SelectItem value="Non-binary">Non-binary</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
               </div>
               <div className="sm:col-span-2 space-y-1.5">
                 <label className="text-sm text-gray-400 font-medium">
                   Diagnosis <span className="text-red-400">*</span>
                 </label>
                 <Input
-                  value={form.diagnosis}
-                  onChange={(e) => handleFormChange("diagnosis", e.target.value)}
+                  {...register("diagnosis")}
                   placeholder="e.g. Mild hypertension"
                   className={cn(
                     "bg-white/5 border-white/10 text-white h-11",
                     errors.diagnosis && "border-red-500/60"
                   )}
                 />
+                {errors.diagnosis && <p className="text-red-400 text-xs">{errors.diagnosis.message}</p>}
               </div>
             </div>
           </div>
@@ -286,9 +299,9 @@ const DoctorPrescriptionWriter = () => {
             </h3>
             <div className="space-y-3">
               <AnimatePresence>
-                {medicines.map((med, idx) => (
+                {fields.map((field, idx) => (
                   <motion.div
-                    key={med.id}
+                    key={field.id}
                     initial={{ y: -10, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     exit={{ opacity: 0, height: 0 }}
@@ -298,9 +311,10 @@ const DoctorPrescriptionWriter = () => {
                       <span className="text-gray-500 text-xs font-medium uppercase tracking-wider">
                         Medicine #{idx + 1}
                       </span>
-                      {medicines.length > 1 && (
+                      {fields.length > 1 && (
                         <button
-                          onClick={() => removeMedicine(med.id)}
+                          type="button"
+                          onClick={() => removeMedicine(idx)}
                           className="text-gray-600 hover:text-red-400 transition-colors p-1 rounded-lg hover:bg-red-400/10"
                         >
                           <Lucide.Trash2 className="w-4 h-4" />
@@ -313,50 +327,59 @@ const DoctorPrescriptionWriter = () => {
                           Medicine Name <span className="text-red-400">*</span>
                         </label>
                         <Input
-                          value={med.name}
-                          onChange={(e) => handleMedChange(med.id, "name", e.target.value)}
+                          {...register(`medicines.${idx}.name`)}
                           placeholder="e.g. Metformin"
                           className={cn(
                             "bg-white/5 border-white/10 text-white h-9 text-sm",
-                            errors[`med-${med.id}-name`] && "border-red-500/60"
+                            errors.medicines?.[idx]?.name && "border-red-500/60"
                           )}
                         />
+                        {errors.medicines?.[idx]?.name && (
+                          <p className="text-red-400 text-[10px] mt-0.5">{errors.medicines[idx].name.message}</p>
+                        )}
                       </div>
                       <div className="space-y-1">
                         <label className="text-xs text-gray-500">
                           Dosage <span className="text-red-400">*</span>
                         </label>
                         <Input
-                          value={med.dosage}
-                          onChange={(e) => handleMedChange(med.id, "dosage", e.target.value)}
+                          {...register(`medicines.${idx}.dosage`)}
                           placeholder="e.g. 500mg"
                           className={cn(
                             "bg-white/5 border-white/10 text-white h-9 text-sm",
-                            errors[`med-${med.id}-dosage`] && "border-red-500/60"
+                            errors.medicines?.[idx]?.dosage && "border-red-500/60"
+                          )}
+                        />
+                        {errors.medicines?.[idx]?.dosage && (
+                          <p className="text-red-400 text-[10px] mt-0.5">{errors.medicines[idx].dosage.message}</p>
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs text-gray-500">Frequency</label>
+                        <Controller
+                          name={`medicines.${idx}.frequency`}
+                          control={control}
+                          render={({ field: selectField }) => (
+                            <Select
+                              value={selectField.value}
+                              onValueChange={selectField.onChange}
+                            >
+                              <SelectTrigger className="bg-white/5 border-white/10 text-white h-9 text-sm">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="bg-[#1A1F2E] border-white/10 text-white">
+                                {FREQ_OPTIONS.map((f) => (
+                                  <SelectItem key={f} value={f}>{f}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           )}
                         />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-xs text-gray-500">Frequency</label>
-                        <Select
-                          value={med.frequency}
-                          onValueChange={(v) => handleMedChange(med.id, "frequency", v)}
-                        >
-                          <SelectTrigger className="bg-white/5 border-white/10 text-white h-9 text-sm">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="bg-[#1A1F2E] border-white/10 text-white">
-                            {FREQ_OPTIONS.map((f) => (
-                              <SelectItem key={f} value={f}>{f}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-1">
                         <label className="text-xs text-gray-500">Duration</label>
                         <Input
-                          value={med.duration}
-                          onChange={(e) => handleMedChange(med.id, "duration", e.target.value)}
+                          {...register(`medicines.${idx}.duration`)}
                           placeholder="e.g. 30 days"
                           className="bg-white/5 border-white/10 text-white h-9 text-sm"
                         />
@@ -367,6 +390,7 @@ const DoctorPrescriptionWriter = () => {
               </AnimatePresence>
             </div>
             <Button
+              type="button"
               variant="ghost"
               onClick={addMedicine}
               className="w-full border border-dashed border-white/15 text-gray-400 hover:text-cyan-400 hover:border-cyan-400/40 hover:bg-cyan-400/5 h-10"
@@ -374,6 +398,9 @@ const DoctorPrescriptionWriter = () => {
               <Lucide.Plus className="w-4 h-4 mr-2" />
               Add Medicine
             </Button>
+            {errors.medicines?.message && (
+              <p className="text-red-400 text-xs text-center">{errors.medicines.message}</p>
+            )}
           </div>
 
           {/* Section 3: Notes */}
@@ -383,16 +410,18 @@ const DoctorPrescriptionWriter = () => {
               Additional Notes
             </h3>
             <textarea
-              value={form.notes}
-              onChange={(e) =>
-                handleFormChange("notes", e.target.value.slice(0, notesMax))
-              }
+              {...register("notes")}
+              maxLength={notesMax}
               placeholder="Additional notes, lifestyle advice, follow-up instructions..."
-              className="w-full bg-white/5 border border-white/10 text-white rounded-xl p-3 min-h-[110px] focus:outline-none focus:ring-2 focus:ring-cyan-500/30 transition-all text-sm resize-none placeholder:text-gray-600"
+              className={cn(
+                "w-full bg-white/5 border border-white/10 text-white rounded-xl p-3 min-h-[110px] focus:outline-none focus:ring-2 focus:ring-cyan-500/30 transition-all text-sm resize-none placeholder:text-gray-600",
+                errors.notes && "border-red-500/60"
+              )}
             />
-            <p className="text-xs text-gray-500 text-right">
-              {notesCount} / {notesMax}
-            </p>
+            <div className="flex justify-between text-xs">
+              <span className="text-red-400">{errors.notes?.message}</span>
+              <span className="text-gray-500">{notesCount} / {notesMax}</span>
+            </div>
           </div>
 
           {/* Section 4: Doctor signature */}
@@ -410,13 +439,14 @@ const DoctorPrescriptionWriter = () => {
           {/* Action buttons */}
           <div className="flex gap-3">
             <Button
-              onClick={handleGenerate}
+              type="submit"
               className="flex-1 bg-blue-600 hover:bg-blue-700 text-white border-none h-12 font-semibold shadow-lg shadow-blue-600/20"
             >
               <Lucide.FileCheck className="w-5 h-5 mr-2" />
               Generate Prescription
             </Button>
             <Button
+              type="button"
               variant="outline"
               onClick={() => setShowClearDialog(true)}
               className="bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10 h-12 px-5"
@@ -445,13 +475,14 @@ const DoctorPrescriptionWriter = () => {
                 >
                   {/* Preview card with generated badge */}
                   <div className="relative">
-                    <PreviewCard form={form} medicines={medicines} doctorName={doctorName} dateStr={dateStr} />
+                    <PreviewCard form={formValues} medicines={medicinesValue} doctorName={doctorName} dateStr={dateStr} />
                     <span className="absolute top-4 right-4 flex items-center gap-1.5 bg-green-500/20 text-green-400 border border-green-500/30 text-xs font-semibold px-3 py-1.5 rounded-full">
                       <Lucide.Check className="w-3 h-3" />
                       Generated
                     </span>
                   </div>
                   <Button
+                    type="button"
                     onClick={handleDownloadPDF}
                     className="w-full bg-emerald-600 hover:bg-emerald-700 text-white border-none h-11 font-semibold shadow-lg shadow-emerald-600/20"
                   >
@@ -459,6 +490,7 @@ const DoctorPrescriptionWriter = () => {
                     Download PDF
                   </Button>
                   <Button
+                    type="button"
                     variant="outline"
                     onClick={handleIssueToPatient}
                     className="w-full bg-white/5 border-white/10 text-white hover:bg-white/10 h-11"
@@ -467,6 +499,7 @@ const DoctorPrescriptionWriter = () => {
                     Issue to Patient
                   </Button>
                   <button
+                    type="button"
                     onClick={() => setGenerated(false)}
                     className="w-full text-center text-gray-500 hover:text-cyan-400 text-sm underline underline-offset-4 transition-colors"
                   >
@@ -475,13 +508,13 @@ const DoctorPrescriptionWriter = () => {
                 </motion.div>
               ) : (
                 <motion.div key="preview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                  <PreviewCard form={form} medicines={medicines} doctorName={doctorName} dateStr={dateStr} />
+                  <PreviewCard form={formValues} medicines={medicinesValue} doctorName={doctorName} dateStr={dateStr} />
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
         </div>
-      </div>
+      </form>
 
       {/* Clear confirmation dialog */}
       <AlertDialog open={showClearDialog} onOpenChange={setShowClearDialog}>
@@ -539,13 +572,13 @@ const PreviewCard = ({ form, medicines, doctorName, dateStr }) => (
     {/* Medicines */}
     <div className="border-t border-white/10 pt-3">
       <p className="text-gray-500 text-xs uppercase tracking-wider mb-2">Medicines</p>
-      {medicines.filter((m) => m.name).length === 0 ? (
+      {medicines.filter((m) => m && m.name).length === 0 ? (
         <p className="text-gray-600 italic text-xs">No medicines added yet</p>
       ) : (
         <div className="space-y-2">
           {medicines.map((med, idx) =>
-            med.name ? (
-              <div key={med.id} className="text-xs">
+            med && med.name ? (
+              <div key={idx} className="text-xs">
                 <span className="text-white font-semibold">
                   {idx + 1}. {med.name}
                 </span>{" "}
