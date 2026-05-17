@@ -2,24 +2,14 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import * as Lucide from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "../../components/ui/AlertDialog";
 import { Button } from "../../components/ui/Button";
 import { cn } from "../../lib/utils";
 import useConsultationTimer from "../../hooks/useConsultationTimer";
 import useAuth from "../../hooks/useAuth";
 import { useSocketQueue } from "../../hooks/useSocketQueue";
 import { getSocket } from "../../lib/socket";
-import Swal from "sweetalert2";
 import { createRoom } from "../../api/rooms";
+import { showSuccess, showError, showInfo, showConfirm } from "../../lib/swal";
 
 const DoctorQueuePage = () => {
   const navigate = useNavigate();
@@ -32,8 +22,6 @@ const DoctorQueuePage = () => {
   
   const [currentPatient, setCurrentPatient] = useState(null);
   const [completedPatients, setCompletedPatients] = useState([]);
-  const [skipTarget, setSkipTarget] = useState(null);
-  const [showEndDialog, setShowEndDialog] = useState(false);
 
   // Sync current patient from queue
   useEffect(() => {
@@ -71,20 +59,21 @@ const DoctorQueuePage = () => {
       navigate(`/room/${roomId}`);
     } catch (err) {
       console.error("Failed to create room:", err);
-      Swal.fire({
-        title: "Error",
-        text: "Failed to create video room.",
-        icon: "error",
-        background: "#0A0F1E",
-        color: "#fff",
-      });
+      showError("Failed to create video room.", "Error");
     }
   };
 
-  const confirmSkip = () => {
-    if (!skipTarget || !socket) return;
-    socket.emit("queue:skip", { doctorId: user.uid, entryId: skipTarget._id });
-    setSkipTarget(null);
+  const handleSkipPatient = async (patient) => {
+    if (!socket) return;
+    const isConfirmed = await showConfirm(
+      `${patient.patientName} will be moved to the end of the queue.`,
+      "Skip this patient?",
+      "warning",
+      "Skip Patient"
+    );
+    if (isConfirmed) {
+      socket.emit("queue:skip", { doctorId: user.uid, entryId: patient._id });
+    }
   };
 
   const endConsultation = () => {
@@ -96,7 +85,18 @@ const DoctorQueuePage = () => {
     setCompletedPatients((prev) => [...prev, { ...currentPatient, duration }]);
     setCurrentPatient(null);
     resetTimer();
-    setShowEndDialog(false);
+  };
+
+  const handleMarkAsDone = async () => {
+    const isConfirmed = await showConfirm(
+      "This will mark the session as complete and move to the next patient.",
+      "End Consultation?",
+      "warning",
+      "End Session"
+    );
+    if (isConfirmed) {
+      endConsultation();
+    }
   };
 
   const waitingPatients = queue.filter(p => p.status === "waiting");
@@ -157,7 +157,7 @@ const DoctorQueuePage = () => {
                     </span>
                     <span className="text-gray-600 text-xs hidden md:block">~{patient.estimatedWaitMins} min wait</span>
                     <button
-                      onClick={() => setSkipTarget(patient)}
+                      onClick={() => handleSkipPatient(patient)}
                       className="p-2 rounded-lg text-gray-500 hover:text-amber-400 hover:bg-amber-400/10 transition-all"
                       title="Skip patient"
                     >
@@ -272,7 +272,7 @@ const DoctorQueuePage = () => {
                       Write Prescription
                     </Button>
                     <Button
-                      onClick={() => setShowEndDialog(true)}
+                      onClick={handleMarkAsDone}
                       className="w-full bg-blue-600 hover:bg-blue-700 text-white border-none shadow-lg shadow-blue-600/20 h-11 font-semibold"
                     >
                       <Lucide.CheckCircle className="w-4 h-4 mr-2" />
@@ -324,14 +324,7 @@ const DoctorQueuePage = () => {
                         variant="ghost"
                         size="sm"
                         onClick={() =>
-                          Swal.fire({
-                            title: "Coming Soon",
-                            text: "Patient records coming soon.",
-                            icon: "info",
-                            background: "#0A0F1E",
-                            color: "#fff",
-                            confirmButtonColor: "#2563eb",
-                          })
+                          showInfo("Patient records coming soon.", "Coming Soon")
                         }
                         className="text-gray-400 hover:text-white text-xs border border-white/10 hover:border-white/20 h-8 px-3"
                       >
@@ -345,52 +338,6 @@ const DoctorQueuePage = () => {
           </div>
         </div>
       )}
-
-      {/* Skip AlertDialog */}
-      <AlertDialog open={!!skipTarget} onOpenChange={(open) => !open && setSkipTarget(null)}>
-        <AlertDialogContent className="bg-[#0D1526] border border-white/10 text-white">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Skip this patient?</AlertDialogTitle>
-            <AlertDialogDescription className="text-gray-400">
-              {skipTarget?.patientName} will be moved to the end of the queue.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="bg-white/5 border-white/10 text-white hover:bg-white/10">
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmSkip}
-              className="bg-amber-500 hover:bg-amber-600 text-white border-none"
-            >
-              Skip Patient
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* End Consultation AlertDialog */}
-      <AlertDialog open={showEndDialog} onOpenChange={setShowEndDialog}>
-        <AlertDialogContent className="bg-[#0D1526] border border-white/10 text-white">
-          <AlertDialogHeader>
-            <AlertDialogTitle>End Consultation?</AlertDialogTitle>
-            <AlertDialogDescription className="text-gray-400">
-              This will mark the session as complete and move to the next patient.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="bg-white/5 border-white/10 text-white hover:bg-white/10">
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={endConsultation}
-              className="bg-blue-600 hover:bg-blue-700 text-white border-none"
-            >
-              End Session
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 };

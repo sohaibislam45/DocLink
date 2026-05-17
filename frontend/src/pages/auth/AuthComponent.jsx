@@ -10,25 +10,11 @@ import { Input } from "../../components/ui/Input";
 import * as Lucide from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import { loginSchema, registerSchema } from "../../schemas/authSchemas";
+import { showError } from "../../lib/swal";
 
 import { useTheme } from "../../context/ThemeContext";
 import { cn } from "../../lib/utils";
-
-const loginSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-});
-
-const registerSchema = z.object({
-  fullName: z.string().min(2, "Full name must be at least 2 characters"),
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  confirmPassword: z.string().min(6, "Please confirm your password"),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords do not match",
-  path: ["confirmPassword"],
-});
 
 const AuthComponent = ({ type }) => {
   const location = useLocation();
@@ -73,18 +59,7 @@ const AuthComponent = ({ type }) => {
       navigate(type === "doctor" ? "/doctor/dashboard" : "/patient/dashboard");
     } catch (err) {
       setAuthError(err.message);
-      const Swal = (await import("sweetalert2")).default;
-      Swal.fire({
-        toast: true,
-        position: 'top-end',
-        icon: 'error',
-        title: 'Authentication Error',
-        text: err.message,
-        showConfirmButton: false,
-        timer: 3000,
-        background: isDarkMode ? "#1A1F2E" : "#fff",
-        color: isDarkMode ? "#fff" : "#000"
-      });
+      showError(err.message);
     } finally {
       setIsLoading(false);
     }

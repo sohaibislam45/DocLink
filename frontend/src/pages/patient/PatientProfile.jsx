@@ -7,20 +7,11 @@ import { Input } from "../../components/ui/Input";
 import { Button } from "../../components/ui/Button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/Select";
 import { Skeleton } from "../../components/ui/Skeleton";
-import Swal from "sweetalert2";
+import { showSuccess, showError } from "../../lib/swal";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-
-const profileSchema = z.object({
-  fullName: z.string().min(2, "Full name must be at least 2 characters"),
-  phone: z.string().min(10, "Phone number must be at least 10 characters"),
-  dob: z.string().min(1, "Date of birth is required"),
-  gender: z.string().min(1, "Gender is required"),
-  bloodType: z.string().min(1, "Blood type is required"),
-  allergies: z.string().optional(),
-});
+import { profileSchema } from "../../schemas/profileSchema";
 
 const PatientProfile = () => {
   const { user } = useAuth();
@@ -70,23 +61,10 @@ const PatientProfile = () => {
     mutationFn: updatePatientProfile,
     onSuccess: () => {
       queryClient.invalidateQueries(["patientProfile", user?.uid]);
-      Swal.fire({
-        title: "Profile Updated!",
-        text: "Your health profile has been successfully updated.",
-        icon: "success",
-        background: "#0A0F1E",
-        color: "#fff",
-        confirmButtonColor: "#06b6d4",
-      });
+      showSuccess("Your health profile has been successfully updated.", "Profile Updated!");
     },
     onError: (err) => {
-      Swal.fire({
-        title: "Error",
-        text: err.message || "Failed to update profile",
-        icon: "error",
-        background: "#0A0F1E",
-        color: "#fff",
-      });
+      showError(err.message || "Failed to update profile", "Error");
     },
   });
 
@@ -334,21 +312,9 @@ const PatientProfile = () => {
                       const { sendPasswordResetEmail } = await import("firebase/auth");
                       const { auth } = await import("../../lib/firebase");
                       await sendPasswordResetEmail(auth, user.email);
-                      Swal.fire({
-                        title: "Email Sent",
-                        text: "Password reset email has been sent to your inbox.",
-                        icon: "success",
-                        background: "#0A0F1E",
-                        color: "#fff",
-                      });
+                      showSuccess("Password reset email has been sent to your inbox.", "Email Sent");
                     } catch (err) {
-                      Swal.fire({
-                        title: "Error",
-                        text: err.message,
-                        icon: "error",
-                        background: "#0A0F1E",
-                        color: "#fff",
-                      });
+                      showError(err.message, "Error");
                     }
                   }}
                 >

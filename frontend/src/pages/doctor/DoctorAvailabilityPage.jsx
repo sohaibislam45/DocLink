@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import * as Lucide from "lucide-react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
 import { useAuth } from "../../context/AuthContext";
 import { Input } from "../../components/ui/Input";
 import { Button } from "../../components/ui/Button";
@@ -18,8 +17,9 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/Avatar";
 import { cn } from "../../lib/utils";
 import useDoctorOnlineStatus from "../../hooks/useDoctorOnlineStatus";
-import Swal from "sweetalert2";
 import { fetchSpecialties } from "../../api/common";
+import { doctorProfileSchema } from "../../schemas/profileSchema";
+import { showSuccess, showError } from "../../lib/swal";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const DEFAULT_HOURS = {
@@ -31,16 +31,6 @@ const DEFAULT_HOURS = {
   Saturday: { enabled: false, from: "09:00", to: "17:00" },
   Sunday: { enabled: false, from: "09:00", to: "17:00" },
 };
-
-const doctorProfileSchema = z.object({
-  fullName: z.string().min(2, "Full name must be at least 2 characters"),
-  phone: z.string().min(6, "Please enter a valid phone number"),
-  specialty: z.string().min(1, "Specialty is required"),
-  experience: z.coerce.number().min(0, "Experience cannot be negative"),
-  fee: z.coerce.number().min(0, "Fee cannot be negative"),
-  bio: z.string().max(500, "Bio must be less than 500 characters"),
-  education: z.string().min(2, "Education and qualifications are required"),
-});
 
 const DoctorAvailabilityPage = () => {
   const { user } = useAuth();
@@ -122,14 +112,7 @@ const DoctorAvailabilityPage = () => {
     setIsSavingAvail(true);
     setTimeout(() => {
       setIsSavingAvail(false);
-      Swal.fire({
-        title: "Availability Updated!",
-        text: "Your working hours have been saved.",
-        icon: "success",
-        background: "#0A0F1E",
-        color: "#fff",
-        confirmButtonColor: "#2563eb",
-      });
+      showSuccess("Your working hours have been saved.", "Availability Updated!");
     }, 1500);
   };
 
@@ -137,14 +120,7 @@ const DoctorAvailabilityPage = () => {
     setIsSavingProfile(true);
     setTimeout(() => {
       setIsSavingProfile(false);
-      Swal.fire({
-        title: "Profile Updated!",
-        text: "Your profile has been saved successfully.",
-        icon: "success",
-        background: "#0A0F1E",
-        color: "#fff",
-        confirmButtonColor: "#2563eb",
-      });
+      showSuccess("Your profile has been saved successfully.", "Profile Updated!");
     }, 1500);
   };
 
@@ -153,16 +129,9 @@ const DoctorAvailabilityPage = () => {
       const { sendPasswordResetEmail } = await import("firebase/auth");
       const { auth } = await import("../../lib/firebase");
       await sendPasswordResetEmail(auth, user.email);
-      Swal.fire({
-        title: "Reset Email Sent",
-        text: "Check your inbox for the password reset link.",
-        icon: "success",
-        background: "#0A0F1E",
-        color: "#fff",
-        confirmButtonColor: "#2563eb",
-      });
+      showSuccess("Check your inbox for the password reset link.", "Reset Email Sent");
     } catch (err) {
-      Swal.fire({ title: "Error", text: err.message, icon: "error", background: "#0A0F1E", color: "#fff" });
+      showError(err.message, "Error");
     }
   };
 

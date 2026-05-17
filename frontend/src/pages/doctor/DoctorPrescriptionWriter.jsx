@@ -5,7 +5,6 @@ import { useSearchParams } from "react-router-dom";
 import { jsPDF } from "jspdf";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
 import { Input } from "../../components/ui/Input";
 import { Button } from "../../components/ui/Button";
 import {
@@ -15,19 +14,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../../components/ui/Select";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "../../components/ui/AlertDialog";
 import { useAuth } from "../../context/AuthContext";
 import { cn } from "../../lib/utils";
-import Swal from "sweetalert2";
+import { showSuccess, showError, showConfirm } from "../../lib/swal";
+import { medicineSchema, prescriptionSchema } from "../../schemas/prescriptionSchema";
 
 const FREQ_OPTIONS = [
   "Once daily",
@@ -41,27 +31,10 @@ const todayFormatted = () => {
   return d.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 };
 
-const medicineSchema = z.object({
-  name: z.string().min(1, "Medicine name is required"),
-  dosage: z.string().min(1, "Dosage is required"),
-  frequency: z.string().min(1, "Frequency is required"),
-  duration: z.string().optional().or(z.literal("")),
-});
-
-const prescriptionSchema = z.object({
-  patientName: z.string().min(2, "Patient name must be at least 2 characters"),
-  age: z.string().optional().or(z.literal("")),
-  gender: z.string().optional().or(z.literal("")),
-  diagnosis: z.string().min(2, "Diagnosis is required"),
-  notes: z.string().max(500, "Notes must be less than 500 characters").optional().or(z.literal("")),
-  medicines: z.array(medicineSchema).min(1, "At least one medicine is required"),
-});
-
 const DoctorPrescriptionWriter = () => {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const [generated, setGenerated] = useState(false);
-  const [showClearDialog, setShowClearDialog] = useState(false);
 
   const doctorName = user?.displayName || "Doctor";
   const dateStr = todayFormatted();
@@ -112,14 +85,7 @@ const DoctorPrescriptionWriter = () => {
   };
 
   const onInvalid = (errors) => {
-    Swal.fire({
-      title: "Validation Error",
-      text: "Please fill all required fields before generating.",
-      icon: "warning",
-      background: "#0A0F1E",
-      color: "#fff",
-      confirmButtonColor: "#2563eb",
-    });
+    showWarning("Please fill all required fields before generating.", "Validation Error");
   };
 
   const handleClear = () => {
@@ -134,7 +100,18 @@ const DoctorPrescriptionWriter = () => {
       ],
     });
     setGenerated(false);
-    setShowClearDialog(false);
+  };
+
+  const triggerClear = async () => {
+    const isConfirmed = await showConfirm(
+      "All entered information will be lost. Are you sure?",
+      "Clear Form?",
+      "warning",
+      "Clear Form"
+    );
+    if (isConfirmed) {
+      handleClear();
+    }
   };
 
   const handleDownloadPDF = () => {
@@ -205,14 +182,7 @@ const DoctorPrescriptionWriter = () => {
   };
 
   const handleIssueToPatient = () => {
-    Swal.fire({
-      title: "Prescription Sent",
-      text: "Prescription sent to patient's dashboard!",
-      icon: "success",
-      background: "#0A0F1E",
-      color: "#fff",
-      confirmButtonColor: "#2563eb",
-    });
+    showSuccess("Prescription sent to patient's dashboard!", "Prescription Sent");
   };
 
   return (
@@ -448,7 +418,7 @@ const DoctorPrescriptionWriter = () => {
             <Button
               type="button"
               variant="outline"
-              onClick={() => setShowClearDialog(true)}
+              onClick={triggerClear}
               className="bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10 h-12 px-5"
             >
               <Lucide.RotateCcw className="w-4 h-4 mr-2" />
@@ -515,26 +485,6 @@ const DoctorPrescriptionWriter = () => {
           </div>
         </div>
       </form>
-
-      {/* Clear confirmation dialog */}
-      <AlertDialog open={showClearDialog} onOpenChange={setShowClearDialog}>
-        <AlertDialogContent className="bg-[#0D1526] border border-white/10 text-white">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Clear Form?</AlertDialogTitle>
-            <AlertDialogDescription className="text-gray-400">
-              All entered information will be lost. Are you sure?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="bg-white/5 border-white/10 text-white hover:bg-white/10">
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={handleClear} className="bg-red-600 hover:bg-red-700 text-white border-none">
-              Clear Form
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 };
