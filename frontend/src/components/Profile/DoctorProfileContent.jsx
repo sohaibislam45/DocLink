@@ -9,7 +9,7 @@ import DoctorReviewsSection from './DoctorReviewsSection';
 import BookingSection from './BookingSection';
 import { DoctorProfileProvider } from '../../context/DoctorProfileContext';
 import { useSocketQueue } from '../../hooks/useSocketQueue';
-import ConnectModal from '../common/ConnectModal';
+import IntakeFormDialog from '../common/IntakeFormDialog';
 import { Skeleton } from '../ui/Skeleton';
 import { AlertCircle, Video, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -76,15 +76,6 @@ const DoctorProfileContent = () => {
     );
   }
 
-  const handleJoinQueue = async (name, reason) => {
-    try {
-      await queueState.joinQueue(name, reason);
-      setShowIntakeForm(false);
-    } catch (err) {
-      console.error("Failed to join queue:", err);
-    }
-  };
-
   return (
     <DoctorProfileProvider doctor={doctor}>
       <div className="min-h-screen bg-background-primary pt-24 pb-20">
@@ -106,12 +97,12 @@ const DoctorProfileContent = () => {
         </div>
       </div>
 
-      <ConnectModal 
+      <IntakeFormDialog 
         open={showIntakeForm} 
         onClose={setShowIntakeForm} 
-        onSubmit={handleJoinQueue}
-        doctorName={doctor.name}
+        doctor={doctor}
       />
+
 
       {/* "Doctor is Calling You!" Full-Screen Overlay */}
       <AnimatePresence>

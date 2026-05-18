@@ -67,7 +67,7 @@ const Footer = () => {
             <ul className="flex flex-col gap-4">
               <li className="flex items-center gap-3 text-text-secondary">
                 <Lucide.Mail className="w-5 h-5 text-accent-primary" />
-                <span>[EMAIL_ADDRESS]</span>
+                <span>sohaibislam45@gmail.com</span>
               </li>
               <li className="flex items-center gap-3 text-text-secondary">
                 <Lucide.Phone className="w-5 h-5 text-accent-primary" />
@@ -83,7 +83,7 @@ const Footer = () => {
 
         <div className="pt-10 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-text-secondary text-sm">
-            © {currentYear} DocLink Healthcare. All rights reserved.
+            © {currentYear} DocLink Healthcare. All rights reserved to Md. Sohaib Islam.
           </p>
           <div className="flex gap-8">
             <a href="#" className="text-text-secondary hover:text-text-primary text-sm transition-colors">Privacy Policy</a>

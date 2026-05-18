@@ -6,10 +6,35 @@ import { Button } from '../ui/Button';
 import { useDoctorProfile } from '../../context/DoctorProfileContext';
 import QueuePanel from '../common/QueuePanel';
 import { useNavigate } from 'react-router-dom';
+import { Skeleton } from '../ui/Skeleton';
 
 const BookingSection = ({ queueState, onOpenIntakeForm }) => {
   const { doctor } = useDoctorProfile();
   const navigate = useNavigate();
+
+  // If loading the queue state, render a nice skeleton card to prevent CTA flashing
+  if (queueState.loading) {
+    return (
+      <div className="lg:col-span-1">
+        <div className="sticky top-24">
+          <Card className="bg-background-secondary/80 backdrop-blur-2xl border-accent-primary/20 shadow-2xl rounded-3xl overflow-hidden">
+            <CardContent className="p-8 space-y-6">
+              <div className="space-y-2">
+                <Skeleton className="h-8 w-1/3 bg-slate-700/20" />
+                <Skeleton className="h-4 w-1/4 bg-slate-700/20" />
+              </div>
+              <Skeleton className="h-24 w-full rounded-2xl bg-slate-700/20" />
+              <Skeleton className="h-14 w-full rounded-2xl bg-slate-700/20 animate-pulse" />
+              <div className="space-y-3 pt-6 border-t border-border/50">
+                <Skeleton className="h-4 w-3/4 bg-slate-700/20" />
+                <Skeleton className="h-4 w-2/3 bg-slate-700/20" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   // If in queue, render the QueuePanel directly. It's already a full card.
   if (queueState.isInQueue) {

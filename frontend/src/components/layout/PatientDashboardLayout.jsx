@@ -35,6 +35,7 @@ const PatientDashboardLayout = () => {
 
   const navItems = [
     { icon: Lucide.LayoutDashboard, label: "Overview", href: "/patient/dashboard" },
+    { icon: Lucide.CreditCard, label: "Payment History", href: "/patient/payments" },
     { icon: Lucide.Stethoscope, label: "My Consultations", href: "/patient/consultations" },
     { icon: Lucide.FileText, label: "My Prescriptions", href: "/patient/prescriptions" },
     { icon: Lucide.UserCircle, label: "Profile & Settings", href: "/patient/profile" },

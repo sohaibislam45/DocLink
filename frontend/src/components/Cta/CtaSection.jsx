@@ -30,19 +30,6 @@ const CtaSection = () => {
               <Link to="/doctors">View Specialties</Link>
             </Button>
           </div>
-          
-          <div className="flex items-center gap-4 mt-8">
-            <div className="flex -space-x-3">
-              {[1,2,3,4].map(i => (
-                <div key={i} className="w-10 h-10 rounded-full border-2 border-background-secondary bg-background-tertiary flex items-center justify-center text-xs font-bold">
-                  {String.fromCharCode(64 + i)}
-                </div>
-              ))}
-            </div>
-            <p className="text-sm text-text-secondary">
-              <span className="text-text-primary font-bold">500+</span> doctors are online right now
-            </p>
-          </div>
         </motion.div>
       </div>
     </section>

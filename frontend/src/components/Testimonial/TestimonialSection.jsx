@@ -76,7 +76,7 @@ const TestimonialSection = () => {
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <h4 className="font-bold text-white">{testimonial.name}</h4>
+                        <h4 className="font-bold text-black">{testimonial.name}</h4>
                         <p className="text-xs text-text-secondary">{testimonial.date}</p>
                       </div>
                     </div>

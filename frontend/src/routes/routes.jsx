@@ -24,9 +24,11 @@ import DoctorLoginPage from "../pages/auth/DoctorLoginPage";
 import PrivateRoute from "../components/layout/PrivateRoute";
 import PatientDashboardLayout from "../components/layout/PatientDashboardLayout";
 import PatientOverview from "../pages/patient/PatientOverview";
+import PatientPayments from "../pages/patient/PatientPayments";
 import PatientConsultations from "../pages/patient/PatientConsultations";
 import PatientPrescriptions from "../pages/patient/PatientPrescriptions";
 import PatientProfile from "../pages/patient/PatientProfile";
+import PaymentSuccessPage from "../pages/payment/PaymentSuccessPage";
 
 // Doctor Dashboard
 import DoctorDashboardLayout from "../components/layout/DoctorDashboardLayout";
@@ -104,6 +106,14 @@ const routes = createBrowserRouter([
             path: "register/doctor",
             element: <DoctorLoginPage />,
           },
+          {
+            path: "payment/success",
+            element: (
+              <PrivateRoute allowedRole="patient">
+                <PaymentSuccessPage />
+              </PrivateRoute>
+            ),
+          },
           // Patient Protected Routes
           {
             path: "patient",
@@ -112,10 +122,15 @@ const routes = createBrowserRouter([
                 <PatientDashboardLayout />
               </PrivateRoute>
             ),
+
             children: [
               {
                 path: "dashboard",
                 element: <PatientOverview />,
+              },
+              {
+                path: "payments",
+                element: <PatientPayments />,
               },
               {
                 path: "consultations",

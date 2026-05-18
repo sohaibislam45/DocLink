@@ -15,3 +15,11 @@ export const connectSchema = z.object({
     .max(300, "Reason must be less than 300 characters"),
   paymentOption: z.string().min(1, "Please select a payment option"),
 });
+
+export const intakeSchema = z.object({
+  patientName: z.string().min(2, "Full name must be at least 2 characters"),
+  reason: z.string()
+    .min(5, "Reason must be at least 5 characters")
+    .max(300, "Reason must be less than 300 characters"),
+});
+

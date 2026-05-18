@@ -5,7 +5,9 @@ import { showSuccess } from "../lib/swal.js";
 import {
   joinQueue as apiJoinQueue,
   leaveQueue as apiLeaveQueue,
+  fetchActiveQueue,
 } from "../api/queues.js";
+import useAuth from "./useAuth.js";
 
 export const useSocketQueue = (doctor) => {
   const [queue, setQueue] = useState([]);           // full active queue array
@@ -20,20 +22,56 @@ export const useSocketQueue = (doctor) => {
   const wasDisconnected = useRef(false);
   const socket = getSocket();
   const doctorId = doctor?.id || doctor?._id; // handle both id formats
+  const { user } = useAuth(); // reactive Firebase user (null → {uid} on load)
 
+  // Always read the freshest uid at call-time — never stale from a closure
   const syncMyEntry = useCallback((queueData) => {
     const uid = auth.currentUser?.uid;
+    if (!Array.isArray(queueData)) return;
     const entry = queueData.find((e) => e.patientUid === uid);
     setMyEntry(entry || null);
     setIsInQueue(!!entry);
     setIsYourTurn(!!entry && entry.position === 1 && entry.status === "called");
-    
-    // If the entry status is 'called', set isCalled to true for the patient
     if (entry?.status === "called") {
-        setIsCalled(true);
+      setIsCalled(true);
     }
-  }, []);
+  }, []); // stable — reads auth.currentUser live, no stale closure
 
+  // ── STEP 1: REST API initial load ────────────────────────────────────────────
+  // Runs immediately when doctorId is known. Does NOT depend on syncMyEntry
+  // so it won't re-run on every user state change.
+  useEffect(() => {
+    if (!doctorId) return;
+
+    let isMounted = true;
+    const loadInitialQueue = async () => {
+      try {
+        setLoading(true);
+        const data = await fetchActiveQueue(doctorId);
+        if (isMounted) {
+          const arr = Array.isArray(data) ? data : [];
+          setQueue(arr);
+          // Don't call syncMyEntry here — let STEP 2 handle it once user resolves
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error("REST API error loading queue:", err);
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    loadInitialQueue();
+    return () => { isMounted = false; };
+  }, [doctorId]); // stable dep — only re-runs if doctor changes
+
+  // ── STEP 2: Re-sync my entry whenever user OR queue changes ──────────────────
+  // This fires when: (a) queue first loads, (b) Firebase resolves user, 
+  // (c) socket sends a live update. Covers all race-condition scenarios.
+  useEffect(() => {
+    syncMyEntry(queue);
+  }, [user, queue, syncMyEntry]);
+
+  // ── STEP 3: Socket.io live updates ───────────────────────────────────────────
   useEffect(() => {
     if (!socket || !doctorId) return;
 
@@ -44,24 +82,24 @@ export const useSocketQueue = (doctor) => {
 
     // Receive full queue state on room join (initial load)
     socket.on("queue:state", (queueData) => {
-      console.log("Received initial queue state:", queueData);
-      setQueue(queueData);
-      syncMyEntry(queueData);
+      console.log("Socket: Received initial queue state:", queueData);
+      const arr = Array.isArray(queueData) ? queueData : [];
+      setQueue(arr);
       setLoading(false);
     });
 
     // Receive live queue updates (any change)
     socket.on("queue:updated", (queueData) => {
-      console.log("Queue updated:", queueData);
-      setQueue(queueData);
-      syncMyEntry(queueData);
+      console.log("Socket: Queue updated:", queueData);
+      const arr = Array.isArray(queueData) ? queueData : [];
+      setQueue(arr);
     });
 
     // Doctor called this specific patient
     socket.on("queue:patient-called", ({ patientUid }) => {
       const uid = auth.currentUser?.uid;
       if (uid === patientUid) {
-        setIsCalled(true);  // triggers full-screen overlay
+        setIsCalled(true);
       }
     });
 
@@ -95,7 +133,7 @@ export const useSocketQueue = (doctor) => {
       socket.off("connect");
       socket.off("disconnect");
     };
-  }, [socket, doctorId, syncMyEntry]);
+  }, [socket, doctorId]);
 
   // Patient joins queue
   const joinQueue = useCallback(async (name, reason) => {
