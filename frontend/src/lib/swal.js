@@ -142,3 +142,28 @@ export const showConfirm = async ({ title, text, confirmText = 'Yes', cancelText
   });
   return result.isConfirmed;
 };
+
+// Aliases for Admin Panel (matching prompt usage)
+export const swalConfirm = (title, text, confirmValue = "Confirm") => 
+  DocSwal.fire({
+    title, text, icon: 'warning', showCancelButton: true,
+    confirmButtonText: confirmValue,
+    confirmButtonColor: '#ef4444', // Admin uses red accent
+    background: getTheme().background, color: getTheme().color,
+    customClass: { popup: 'rounded-2xl' }
+  });
+
+export const swalSuccess = (title, message) => 
+  DocSwal.fire({ title, text: message, icon: 'success', background: getTheme().background, color: getTheme().color });
+
+export const swalError = (title, message) => 
+  DocSwal.fire({ title, text: message, icon: 'error', background: getTheme().background, color: getTheme().color });
+
+export const swalToast = (type, message) => {
+  const theme = getTheme();
+  DocSwal.fire({
+    toast: true, position: 'bottom-end', icon: type, title: message,
+    showConfirmButton: false, timer: 3000, timerProgressBar: true,
+    background: theme.background, color: theme.color
+  });
+};

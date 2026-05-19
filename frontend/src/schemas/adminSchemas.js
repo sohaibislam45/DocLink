@@ -1,0 +1,27 @@
+import { z } from "zod";
+
+export const adminDoctorSchema = z.object({
+  name:       z.string().min(2, "Name is required"),
+  specialty:  z.string().min(1, "Specialty is required"),
+  experience: z.coerce.number().min(0, "Experience required"),
+  fee:        z.coerce.number().min(1, "Fee required"),
+  bio:        z.string().optional(),
+  gender:     z.enum(["male", "female"]),
+  languages:  z.string().optional(), // comma-separated, split on submit
+  rating:     z.coerce.number().min(0).max(5).default(0),
+});
+
+export const adminPatientSchema = z.object({
+  name:      z.string().min(2, "Name required"),
+  phone:     z.string().optional(),
+  dob:       z.string().optional(),
+  gender:    z.string().optional(),
+  bloodType: z.string().optional(),
+  allergies: z.string().optional(),
+});
+
+export const settingsSchema = z.object({
+  platformFee:         z.coerce.number().min(0, "Fee must be 0 or more").max(50),
+  maintenanceMode:     z.boolean(),
+  announcementBanner:  z.string().max(200, "Max 200 characters").optional(),
+});

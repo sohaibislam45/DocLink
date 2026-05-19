@@ -24,6 +24,8 @@ const PrivateRoute = ({ children, allowedRole, allowedRoles }) => {
     let loginPath = "/login/patient";
     if (allowedRole === "doctor" || (allowedRoles && allowedRoles.includes("doctor"))) {
       loginPath = "/login/doctor";
+    } else if (allowedRole === "admin" || (allowedRoles && allowedRoles.includes("admin"))) {
+      loginPath = "/login/admin";
     }
     return <Navigate to={loginPath} state={{ from: location }} replace />;
   }

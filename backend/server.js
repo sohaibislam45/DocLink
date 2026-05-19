@@ -16,6 +16,7 @@ import categoryRoutes from "./routes/categories.js";
 import queueRoutes from "./routes/queues.js";
 import roomRoutes from "./routes/rooms.js";
 import paymentRoutes, { handleWebhook } from "./routes/payments.js";
+import adminRoutes from "./routes/admin.js";
 
 dotenv.config();
 const app = express();
@@ -62,6 +63,7 @@ app.use("/api/categories", categoryRoutes);
 app.use("/api/queues", queueRoutes);
 app.use("/api/rooms", roomRoutes);
 app.use("/api/payments", paymentRoutes);
+app.use("/api/admin", adminRoutes);
 
 
 // 404 handler

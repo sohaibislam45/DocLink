@@ -312,19 +312,37 @@ const AuthComponent = ({ type }) => {
             </div>
 
             <div className={cn("pt-6 border-t mt-6 text-center", isDarkMode ? "border-white/10" : "border-gray-100")}>
-              <p className={cn("text-xs mb-4", isDarkMode ? "text-gray-500" : "text-gray-400")}>
-                {type === "patient" ? "Are you a doctor?" : "Are you a patient?"}
-              </p>
-              <Link
-                to={isLogin ? (type === "patient" ? "/login/doctor" : "/login/patient") : (type === "patient" ? "/register/doctor" : "/register/patient")}
-                className={cn(
-                  "inline-flex items-center gap-2 text-sm transition-colors group",
-                  isDarkMode ? "text-gray-400 hover:text-white" : "text-gray-500 hover:text-gray-900"
-                )}
-              >
-                {type === "patient" ? "Doctor Portal" : "Patient Portal"}
-                <Lucide.ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </Link>
+              <div className="mb-4">
+                <p className={cn("text-xs mb-2", isDarkMode ? "text-gray-500" : "text-gray-400")}>
+                  {type === "patient" ? "Are you a doctor?" : "Are you a patient?"}
+                </p>
+                <Link
+                  to={isLogin ? (type === "patient" ? "/login/doctor" : "/login/patient") : (type === "patient" ? "/register/doctor" : "/register/patient")}
+                  className={cn(
+                    "inline-flex items-center gap-2 text-sm transition-colors group",
+                    isDarkMode ? "text-gray-400 hover:text-white" : "text-gray-500 hover:text-gray-900"
+                  )}
+                >
+                  {type === "patient" ? "Doctor Portal" : "Patient Portal"}
+                  <Lucide.ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </Link>
+              </div>
+              
+              <div className={cn("pt-4 border-t", isDarkMode ? "border-white/10" : "border-gray-100")}>
+                <p className={cn("text-xs mb-2", isDarkMode ? "text-gray-500" : "text-gray-400")}>
+                  Are you an admin?
+                </p>
+                <Link
+                  to="/login/admin"
+                  className={cn(
+                    "inline-flex items-center gap-2 text-sm transition-colors group",
+                    isDarkMode ? "text-gray-400 hover:text-white" : "text-gray-500 hover:text-gray-900"
+                  )}
+                >
+                  Admin Portal
+                  <Lucide.ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </Link>
+              </div>
           </div>
         </div>
       </motion.div>

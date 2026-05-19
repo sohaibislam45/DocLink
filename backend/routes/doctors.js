@@ -21,6 +21,7 @@ const doctorSchema = new mongoose.Schema({
   availableThisWeek: { type: Boolean, default: false },
   languages: [String],
   bio: { type: String },
+  verified: { type: Boolean, default: false },
   reviews: [{
     id: String,
     author: String,

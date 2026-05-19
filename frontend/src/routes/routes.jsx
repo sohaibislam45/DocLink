@@ -10,6 +10,8 @@ import PricingPage from "../pages/PricingPage";
 import { AuthProvider } from "../context/AuthContext";
 import { ThemeProvider } from "../context/ThemeContext";
 import { DoctorSearchProvider } from "../context/DoctorSearchContext";
+import LoadingScreen from "../components/common/LoadingScreen";
+import { useState, useEffect } from "react";
 
 // TanStack Query
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -41,18 +43,37 @@ import DoctorAvailabilityPage from "../pages/doctor/DoctorAvailabilityPage";
 // Call Room
 import CallRoomPage from "../pages/CallRoomPage";
 
-const RootLayout = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <ThemeProvider>
-        <DoctorSearchProvider>
-          <Outlet />
-        </DoctorSearchProvider>
-      </ThemeProvider>
-    </AuthProvider>
-    <ReactQueryDevtools initialIsOpen={false} />
-  </QueryClientProvider>
-);
+// Admin Panel
+import AdminDashboardLayout from "../components/layout/AdminDashboardLayout";
+import AdminLoginPage from "../pages/auth/AdminLoginPage";
+import AdminOverview from "../pages/admin/AdminOverview";
+import AdminDoctors from "../pages/admin/AdminDoctors";
+import AdminPatients from "../pages/admin/AdminPatients";
+import AdminPayments from "../pages/admin/AdminPayments";
+import AdminSettings from "../pages/admin/AdminSettings";
+
+const RootLayout = () => {
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 3000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <ThemeProvider>
+          <DoctorSearchProvider>
+            <LoadingScreen show={isLoading} />
+            <Outlet />
+          </DoctorSearchProvider>
+        </ThemeProvider>
+      </AuthProvider>
+      <ReactQueryDevtools initialIsOpen={false} />
+    </QueryClientProvider>
+  );
+};
 
 const routes = createBrowserRouter([
   {
@@ -189,6 +210,45 @@ const routes = createBrowserRouter([
                 <CallRoomPage />
               </PrivateRoute>
             ),
+          },
+          // Admin Routes
+          {
+            path: "login/admin",
+            element: <AdminLoginPage />,
+          },
+          {
+            path: "admin",
+            element: (
+              <PrivateRoute allowedRole="admin">
+                <AdminDashboardLayout />
+              </PrivateRoute>
+            ),
+            children: [
+              {
+                index: true,
+                element: <Navigate to="/admin/dashboard" replace />,
+              },
+              {
+                path: "dashboard",
+                element: <AdminOverview />,
+              },
+              {
+                path: "doctors",
+                element: <AdminDoctors />,
+              },
+              {
+                path: "patients",
+                element: <AdminPatients />,
+              },
+              {
+                path: "payments",
+                element: <AdminPayments />,
+              },
+              {
+                path: "settings",
+                element: <AdminSettings />,
+              },
+            ],
           },
         ],
       },
