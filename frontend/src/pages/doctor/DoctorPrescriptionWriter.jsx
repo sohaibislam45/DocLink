@@ -188,17 +188,17 @@ const DoctorPrescriptionWriter = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white mb-1">Prescription Writer</h2>
-        <p className="text-gray-500">Create and issue digital prescriptions to your patients.</p>
+        <h2 className="text-2xl font-bold text-text-primary mb-1">Prescription Writer</h2>
+        <p className="text-text-secondary">Create and issue digital prescriptions to your patients.</p>
       </div>
 
       <form onSubmit={handleSubmit(handleGenerate, onInvalid)} className="grid grid-cols-1 xl:grid-cols-11 gap-6">
         {/* Left: Form */}
         <div className="xl:col-span-6 space-y-5">
           {/* Section 1: Patient Info */}
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-4">
-            <h3 className="text-white font-semibold flex items-center gap-2">
-              <Lucide.UserCircle className="w-5 h-5 text-cyan-400" />
+          <div className="bg-background-secondary border border-border rounded-2xl p-6 space-y-4">
+            <h3 className="text-text-primary font-semibold flex items-center gap-2">
+              <Lucide.UserCircle className="w-5 h-5 text-accent-primary" />
               Patient Information
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -210,7 +210,7 @@ const DoctorPrescriptionWriter = () => {
                   {...register("patientName")}
                   placeholder="Full name"
                   className={cn(
-                    "bg-white/5 border-white/10 text-white h-11",
+                    "bg-background-tertiary border-border text-text-primary h-11",
                     errors.patientName && "border-red-500/60 focus:ring-red-500/20"
                   )}
                 />
@@ -222,7 +222,7 @@ const DoctorPrescriptionWriter = () => {
                   type="number"
                   {...register("age")}
                   placeholder="e.g. 32"
-                  className="bg-white/5 border-white/10 text-white h-11"
+                  className="bg-background-tertiary border-border text-text-primary h-11"
                 />
               </div>
               <div className="space-y-1.5">
@@ -232,10 +232,10 @@ const DoctorPrescriptionWriter = () => {
                   control={control}
                   render={({ field }) => (
                     <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger className="bg-white/5 border-white/10 text-white h-11">
+                      <SelectTrigger className="bg-background-tertiary border-border text-text-primary h-11">
                         <SelectValue placeholder="Select gender" />
                       </SelectTrigger>
-                      <SelectContent className="bg-[#1A1F2E] border-white/10 text-white">
+                      <SelectContent className="bg-background-secondary border-border text-text-primary">
                         <SelectItem value="Male">Male</SelectItem>
                         <SelectItem value="Female">Female</SelectItem>
                         <SelectItem value="Non-binary">Non-binary</SelectItem>
@@ -252,7 +252,7 @@ const DoctorPrescriptionWriter = () => {
                   {...register("diagnosis")}
                   placeholder="e.g. Mild hypertension"
                   className={cn(
-                    "bg-white/5 border-white/10 text-white h-11",
+                    "bg-background-tertiary border-border text-text-primary h-11",
                     errors.diagnosis && "border-red-500/60"
                   )}
                 />
@@ -262,9 +262,9 @@ const DoctorPrescriptionWriter = () => {
           </div>
 
           {/* Section 2: Medicines */}
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-4">
-            <h3 className="text-white font-semibold flex items-center gap-2">
-              <Lucide.Pill className="w-5 h-5 text-cyan-400" />
+          <div className="bg-background-secondary border border-border rounded-2xl p-6 space-y-4">
+            <h3 className="text-text-primary font-semibold flex items-center gap-2">
+              <Lucide.Pill className="w-5 h-5 text-accent-primary" />
               Medicines
             </h3>
             <div className="space-y-3">
@@ -275,7 +275,7 @@ const DoctorPrescriptionWriter = () => {
                     initial={{ y: -10, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     exit={{ opacity: 0, height: 0 }}
-                    className="bg-white/[0.03] border border-white/10 rounded-xl p-4 space-y-3"
+                    className="bg-background-tertiary border border-border rounded-xl p-4 space-y-3"
                   >
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-gray-500 text-xs font-medium uppercase tracking-wider">
@@ -300,7 +300,7 @@ const DoctorPrescriptionWriter = () => {
                           {...register(`medicines.${idx}.name`)}
                           placeholder="e.g. Metformin"
                           className={cn(
-                            "bg-white/5 border-white/10 text-white h-9 text-sm",
+                            "bg-background-secondary border-border text-text-primary h-9 text-sm",
                             errors.medicines?.[idx]?.name && "border-red-500/60"
                           )}
                         />
@@ -316,7 +316,7 @@ const DoctorPrescriptionWriter = () => {
                           {...register(`medicines.${idx}.dosage`)}
                           placeholder="e.g. 500mg"
                           className={cn(
-                            "bg-white/5 border-white/10 text-white h-9 text-sm",
+                            "bg-background-secondary border-border text-text-primary h-9 text-sm",
                             errors.medicines?.[idx]?.dosage && "border-red-500/60"
                           )}
                         />
@@ -334,10 +334,10 @@ const DoctorPrescriptionWriter = () => {
                               value={selectField.value}
                               onValueChange={selectField.onChange}
                             >
-                              <SelectTrigger className="bg-white/5 border-white/10 text-white h-9 text-sm">
+                              <SelectTrigger className="bg-background-secondary border-border text-text-primary h-9 text-sm">
                                 <SelectValue />
                               </SelectTrigger>
-                              <SelectContent className="bg-[#1A1F2E] border-white/10 text-white">
+                               <SelectContent className="bg-background-secondary border-border text-text-primary">
                                 {FREQ_OPTIONS.map((f) => (
                                   <SelectItem key={f} value={f}>{f}</SelectItem>
                                 ))}
@@ -351,7 +351,7 @@ const DoctorPrescriptionWriter = () => {
                         <Input
                           {...register(`medicines.${idx}.duration`)}
                           placeholder="e.g. 30 days"
-                          className="bg-white/5 border-white/10 text-white h-9 text-sm"
+                          className="bg-background-secondary border-border text-text-primary h-9 text-sm"
                         />
                       </div>
                     </div>
@@ -363,7 +363,7 @@ const DoctorPrescriptionWriter = () => {
               type="button"
               variant="ghost"
               onClick={addMedicine}
-              className="w-full border border-dashed border-white/15 text-gray-400 hover:text-cyan-400 hover:border-cyan-400/40 hover:bg-cyan-400/5 h-10"
+              className="w-full border border-dashed border-border text-text-secondary hover:text-accent-primary hover:border-accent-primary/40 hover:bg-accent-primary/5 h-10"
             >
               <Lucide.Plus className="w-4 h-4 mr-2" />
               Add Medicine
@@ -374,9 +374,9 @@ const DoctorPrescriptionWriter = () => {
           </div>
 
           {/* Section 3: Notes */}
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-3">
-            <h3 className="text-white font-semibold flex items-center gap-2">
-              <Lucide.StickyNote className="w-5 h-5 text-cyan-400" />
+          <div className="bg-background-secondary border border-border rounded-2xl p-6 space-y-3">
+            <h3 className="text-text-primary font-semibold flex items-center gap-2">
+              <Lucide.StickyNote className="w-5 h-5 text-accent-primary" />
               Additional Notes
             </h3>
             <textarea
@@ -384,7 +384,7 @@ const DoctorPrescriptionWriter = () => {
               maxLength={notesMax}
               placeholder="Additional notes, lifestyle advice, follow-up instructions..."
               className={cn(
-                "w-full bg-white/5 border border-white/10 text-white rounded-xl p-3 min-h-[110px] focus:outline-none focus:ring-2 focus:ring-cyan-500/30 transition-all text-sm resize-none placeholder:text-gray-600",
+                "w-full bg-background-tertiary border border-border text-text-primary rounded-xl p-3 min-h-[110px] focus:outline-none focus:ring-2 focus:ring-accent-primary/30 transition-all text-sm resize-none placeholder:text-text-secondary/50",
                 errors.notes && "border-red-500/60"
               )}
             />
@@ -395,14 +395,14 @@ const DoctorPrescriptionWriter = () => {
           </div>
 
           {/* Section 4: Doctor signature */}
-          <div className="bg-white/[0.03] border border-white/8 rounded-2xl p-4 flex items-center gap-3">
+          <div className="bg-background-secondary/50 border border-border rounded-2xl p-4 flex items-center gap-3">
             <Lucide.UserCheck className="w-5 h-5 text-gray-600" />
             <div>
-              <p className="text-gray-400 text-sm">
+              <p className="text-text-secondary text-sm">
                 Prescribed by:{" "}
-                <span className="text-white font-semibold">Dr. {doctorName}</span>
+                <span className="text-text-primary font-semibold">Dr. {doctorName}</span>
               </p>
-              <p className="text-gray-600 text-xs">{dateStr}</p>
+              <p className="text-text-secondary/50 text-xs">{dateStr}</p>
             </div>
           </div>
 
@@ -419,7 +419,7 @@ const DoctorPrescriptionWriter = () => {
               type="button"
               variant="outline"
               onClick={triggerClear}
-              className="bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10 h-12 px-5"
+              className="bg-background-secondary border-border text-text-secondary hover:text-text-primary hover:bg-background-tertiary h-12 px-5"
             >
               <Lucide.RotateCcw className="w-4 h-4 mr-2" />
               Clear
@@ -491,25 +491,25 @@ const DoctorPrescriptionWriter = () => {
 
 // Live preview card component
 const PreviewCard = ({ form, medicines, doctorName, dateStr }) => (
-  <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-4 font-mono text-sm">
+  <div className="bg-background-secondary border border-border rounded-2xl p-6 space-y-4 font-mono text-sm">
     {/* Header */}
-    <div className="flex items-center justify-between border-b border-white/10 pb-4">
+    <div className="flex items-center justify-between border-b border-border pb-4">
       <div>
-        <p className="text-cyan-400 font-bold text-base tracking-tight">DocLink Rx</p>
-        <p className="text-gray-500 text-xs">Telemedicine Prescription</p>
+        <p className="text-accent-primary font-bold text-base tracking-tight">DocLink Rx</p>
+        <p className="text-text-secondary text-xs">Telemedicine Prescription</p>
       </div>
-      <p className="text-gray-500 text-xs">{dateStr}</p>
+      <p className="text-text-secondary text-xs">{dateStr}</p>
     </div>
 
     {/* Patient info */}
     <div className="space-y-1">
       <div className="flex gap-2">
-        <span className="text-gray-500 text-xs w-20">Patient</span>
-        <span className="text-white font-semibold">{form.patientName || "—"}</span>
+        <span className="text-text-secondary text-xs w-20">Patient</span>
+        <span className="text-text-primary font-semibold">{form.patientName || "—"}</span>
       </div>
       <div className="flex gap-2">
-        <span className="text-gray-500 text-xs w-20">Age / Gender</span>
-        <span className="text-white">
+        <span className="text-text-secondary text-xs w-20">Age / Gender</span>
+        <span className="text-text-primary">
           {form.age || "—"} / {form.gender || "—"}
         </span>
       </div>
@@ -520,19 +520,19 @@ const PreviewCard = ({ form, medicines, doctorName, dateStr }) => (
     </div>
 
     {/* Medicines */}
-    <div className="border-t border-white/10 pt-3">
-      <p className="text-gray-500 text-xs uppercase tracking-wider mb-2">Medicines</p>
+    <div className="border-t border-border pt-3">
+      <p className="text-text-secondary text-xs uppercase tracking-wider mb-2">Medicines</p>
       {medicines.filter((m) => m && m.name).length === 0 ? (
-        <p className="text-gray-600 italic text-xs">No medicines added yet</p>
+        <p className="text-text-secondary/50 italic text-xs">No medicines added yet</p>
       ) : (
         <div className="space-y-2">
           {medicines.map((med, idx) =>
             med && med.name ? (
               <div key={idx} className="text-xs">
-                <span className="text-white font-semibold">
+                <span className="text-text-primary font-semibold">
                   {idx + 1}. {med.name}
                 </span>{" "}
-                <span className="text-gray-400">
+                <span className="text-text-secondary">
                   {med.dosage && `(${med.dosage})`} — {med.frequency}
                   {med.duration && `, ${med.duration}`}
                 </span>
@@ -545,16 +545,16 @@ const PreviewCard = ({ form, medicines, doctorName, dateStr }) => (
 
     {/* Notes */}
     {form.notes && (
-      <div className="border-t border-white/10 pt-3">
-        <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">Notes</p>
-        <p className="text-gray-300 text-xs italic leading-relaxed line-clamp-4">{form.notes}</p>
+      <div className="border-t border-border pt-3">
+        <p className="text-text-secondary text-xs uppercase tracking-wider mb-1">Notes</p>
+        <p className="text-text-secondary text-xs italic leading-relaxed line-clamp-4">{form.notes}</p>
       </div>
     )}
 
     {/* Signature */}
-    <div className="border-t border-white/10 pt-3">
-      <p className="text-gray-500 text-xs">Dr. {doctorName}</p>
-      <p className="text-gray-600 text-xs">DocLink Medical Provider</p>
+    <div className="border-t border-border pt-3">
+      <p className="text-text-secondary text-xs">Dr. {doctorName}</p>
+      <p className="text-text-secondary/60 text-xs">DocLink Medical Provider</p>
     </div>
   </div>
 );

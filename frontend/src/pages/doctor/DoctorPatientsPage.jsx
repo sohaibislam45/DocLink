@@ -56,8 +56,8 @@ const DoctorPatientsPage = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-white mb-1">Patient Records</h2>
-        <p className="text-gray-500">View and manage your consultation history.</p>
+        <h2 className="text-2xl font-bold text-text-primary mb-1">Patient Records</h2>
+        <p className="text-text-secondary">View and manage your consultation history.</p>
       </div>
 
       {/* Search */}
@@ -66,12 +66,12 @@ const DoctorPatientsPage = () => {
         animate={{ opacity: 1 }}
         className="relative"
       >
-        <Lucide.Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+        <Lucide.Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
         <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search by patient name or diagnosis..."
-          className="pl-11 bg-white/5 border-white/10 text-white placeholder:text-gray-600 h-12 focus:ring-cyan-500/30"
+          className="pl-11 bg-background-secondary border-border text-text-primary placeholder:text-text-secondary/50 h-12 focus:ring-accent-primary/30"
         />
       </motion.div>
 
@@ -87,7 +87,7 @@ const DoctorPatientsPage = () => {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.97 }}
                 transition={{ delay: idx * 0.05 }}
-                className="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-wrap items-center gap-4 hover:border-cyan-500/20 transition-all"
+                className="bg-background-secondary border border-border rounded-2xl p-4 flex flex-wrap items-center gap-4 hover:border-accent-primary/20 transition-all"
               >
                 {/* Left: Avatar + name */}
                 <div className="flex items-center gap-3 min-w-[160px]">
@@ -95,8 +95,8 @@ const DoctorPatientsPage = () => {
                     {patient.initials}
                   </div>
                   <div>
-                    <p className="text-white font-semibold text-sm">{patient.name}</p>
-                    <p className="text-gray-500 text-xs">
+                    <p className="text-text-primary font-semibold text-sm">{patient.name}</p>
+                    <p className="text-text-secondary text-xs">
                       {patient.age} yrs · {patient.gender}
                     </p>
                   </div>
@@ -104,7 +104,7 @@ const DoctorPatientsPage = () => {
 
                 {/* Center: Visit info */}
                 <div className="flex items-center gap-3 flex-wrap flex-1">
-                  <span className="text-xs text-gray-500 flex items-center gap-1 bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
+                  <span className="text-xs text-text-secondary flex items-center gap-1 bg-background-tertiary px-3 py-1.5 rounded-full border border-border">
                     <Lucide.Calendar className="w-3 h-3" />
                     {patient.lastVisit}
                   </span>
@@ -115,7 +115,7 @@ const DoctorPatientsPage = () => {
 
                 {/* Right: Duration + Rx + button */}
                 <div className="flex items-center gap-3 shrink-0">
-                  <span className="text-gray-500 text-xs flex items-center gap-1 hidden sm:flex">
+                  <span className="text-text-secondary text-xs flex items-center gap-1 hidden sm:flex">
                     <Lucide.Clock className="w-3 h-3" />
                     {patient.consultationDuration}
                   </span>
@@ -133,7 +133,7 @@ const DoctorPatientsPage = () => {
                     variant="outline"
                     size="sm"
                     onClick={() => setSelectedPatient(patient)}
-                    className="bg-white/5 border-white/10 text-white hover:bg-white/10 text-xs h-9 px-4"
+                    className="bg-background-secondary border-border text-text-primary hover:bg-background-tertiary text-xs h-9 px-4"
                   >
                     View Details
                   </Button>
@@ -145,11 +145,11 @@ const DoctorPatientsPage = () => {
               key="empty"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="flex flex-col items-center justify-center py-20 text-center bg-white/[0.02] border border-white/5 rounded-2xl"
+              className="flex flex-col items-center justify-center py-20 text-center bg-background-secondary/50 border border-border rounded-2xl"
             >
-              <Lucide.SearchX className="w-12 h-12 text-gray-600 mb-4" />
-              <p className="text-gray-400 font-medium">No patients found matching</p>
-              <p className="text-gray-600 text-sm mt-1">"{query}"</p>
+              <Lucide.SearchX className="w-12 h-12 text-text-secondary/30 mb-4" />
+              <p className="text-text-secondary font-medium">No patients found matching</p>
+              <p className="text-text-secondary/60 text-sm mt-1">"{query}"</p>
             </motion.div>
           )}
         </AnimatePresence>
@@ -157,15 +157,15 @@ const DoctorPatientsPage = () => {
 
       {/* Detail Dialog */}
       <Dialog open={!!selectedPatient} onOpenChange={(open) => !open && setSelectedPatient(null)}>
-        <DialogContent className="bg-[#0D1526] border border-white/10 text-white max-w-lg">
+        <DialogContent className="bg-background-secondary border border-border text-text-primary max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
                 {selectedPatient?.initials}
               </div>
               <div>
-                <p className="text-white font-semibold">{selectedPatient?.name}</p>
-                <p className="text-gray-500 text-xs font-normal">
+                <p className="text-text-primary font-semibold">{selectedPatient?.name}</p>
+                <p className="text-text-secondary text-xs font-normal">
                   {selectedPatient?.age} yrs · {selectedPatient?.gender}
                 </p>
               </div>
@@ -176,13 +176,13 @@ const DoctorPatientsPage = () => {
             <div className="space-y-5 mt-2">
               {/* Key Info */}
               <div className="grid grid-cols-2 gap-4 text-sm">
-                <div className="bg-white/5 rounded-xl p-3">
-                  <p className="text-gray-500 text-xs mb-1">Last Visit</p>
-                  <p className="text-white font-medium">{selectedPatient.lastVisit}</p>
+                <div className="bg-background-tertiary rounded-xl p-3">
+                  <p className="text-text-secondary text-xs mb-1">Last Visit</p>
+                  <p className="text-text-primary font-medium">{selectedPatient.lastVisit}</p>
                 </div>
-                <div className="bg-white/5 rounded-xl p-3">
-                  <p className="text-gray-500 text-xs mb-1">Duration</p>
-                  <p className="text-white font-medium">{selectedPatient.consultationDuration}</p>
+                <div className="bg-background-tertiary rounded-xl p-3">
+                  <p className="text-text-secondary text-xs mb-1">Duration</p>
+                  <p className="text-text-primary font-medium">{selectedPatient.consultationDuration}</p>
                 </div>
               </div>
 
@@ -193,9 +193,9 @@ const DoctorPatientsPage = () => {
               </div>
 
               {/* Notes */}
-              <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-                <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Clinical Notes</p>
-                <p className="text-gray-300 text-sm leading-relaxed">{selectedPatient.notes}</p>
+              <div className="bg-background-tertiary border border-border rounded-xl p-4">
+                <p className="text-xs text-text-secondary uppercase tracking-wider mb-2">Clinical Notes</p>
+                <p className="text-text-secondary text-sm leading-relaxed">{selectedPatient.notes}</p>
               </div>
 
               {/* Prescription status */}
