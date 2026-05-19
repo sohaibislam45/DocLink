@@ -12,6 +12,25 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { adminPatientSchema } from "../../schemas/adminSchemas.js";
 
+function PatientAvatar({ patient }) {
+  const [imgError, setImgError] = useState(false);
+  return (
+    <div className="w-9 h-9 rounded-full bg-red-500/10 flex items-center justify-center text-red-500 text-xs font-bold border border-red-500/20 overflow-hidden">
+      {patient.photoURL && !imgError ? (
+        <img 
+          src={patient.photoURL} 
+          alt={patient.name} 
+          referrerPolicy="no-referrer"
+          className="w-full h-full object-cover" 
+          onError={() => setImgError(true)}
+        />
+      ) : (
+        patient.name?.charAt(0).toUpperCase() || "P"
+      )}
+    </div>
+  );
+}
+
 export default function AdminPatients() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
@@ -112,13 +131,7 @@ export default function AdminPatients() {
                 <tr key={patient.uid} className="hover:bg-red-500/[0.02] transition-colors">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-red-500/10 flex items-center justify-center text-red-500 text-xs font-bold border border-red-500/20 overflow-hidden">
-                        {patient.photoURL ? (
-                          <img src={patient.photoURL} alt={patient.name} className="w-full h-full object-cover" />
-                        ) : (
-                          patient.name?.charAt(0).toUpperCase() || "P"
-                        )}
-                      </div>
+                      <PatientAvatar patient={patient} />
                       <p className="font-medium text-[#0F172A] dark:text-[#F0F4FF]">{patient.name}</p>
                     </div>
                   </td>

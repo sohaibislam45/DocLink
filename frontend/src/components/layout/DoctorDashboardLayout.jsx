@@ -165,7 +165,7 @@ const DoctorDashboardLayout = () => {
           <motion.div variants={itemVariants}>
             <button
               onClick={logout}
-              className="w-full flex items-center gap-3 px-6 py-4 rounded-2xl bg-background-secondary border border-border text-text-secondary hover:text-danger hover:bg-danger/5 transition-all group shadow-sm"
+              className="w-full flex items-center gap-3 px-6 py-4 rounded-2xl bg-red-50/50 hover:bg-red-100/60 dark:bg-background-secondary border border-red-200/40 dark:border-border text-red-600 dark:text-text-secondary dark:hover:text-danger dark:hover:bg-danger/5 transition-all group shadow-sm"
             >
               <Lucide.LogOut className="w-5 h-5" />
               <span className="font-semibold">Sign Out</span>

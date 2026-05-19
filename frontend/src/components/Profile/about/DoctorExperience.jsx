@@ -5,8 +5,52 @@ import * as Lucide from "lucide-react";
 const DoctorExperience = () => {
   const { doctor } = useDoctorProfile();
 
-  // Experiences are now part of the doctor object from the database
-  const experiences = doctor?.experiences || [];
+  // Parse experienceDetails from database, falling back to experiences array or custom default
+  const experiences = [];
+  if (doctor?.experienceDetails) {
+    const lines = doctor.experienceDetails.split('\n').map(l => l.trim()).filter(Boolean);
+    lines.forEach(line => {
+      const periodMatch = line.match(/\(([^)]+)\)$/);
+      let period = "";
+      let remaining = line;
+      if (periodMatch) {
+        period = periodMatch[1];
+        remaining = line.replace(/\s*\([^)]+\)$/, "").trim();
+      }
+      
+      let role = remaining;
+      let institution = "";
+      if (remaining.includes(" at ")) {
+        const parts = remaining.split(" at ");
+        role = parts[0].trim();
+        institution = parts.slice(1).join(" at ").trim();
+      } else if (remaining.includes(" - ")) {
+        const parts = remaining.split(" - ");
+        role = parts[0].trim();
+        institution = parts.slice(1).join(" - ").trim();
+      } else if (remaining.includes(",")) {
+        const parts = remaining.split(",");
+        role = parts[0].trim();
+        institution = parts.slice(1).join(",").trim();
+      }
+      
+      experiences.push({
+        role,
+        institution: institution || "Medical Center",
+        period: period || "Past",
+        description: ""
+      });
+    });
+  } else if (doctor?.experiences && doctor.experiences.length > 0) {
+    experiences.push(...doctor.experiences);
+  } else {
+    experiences.push({
+      role: "Senior Consultant",
+      institution: "General Hospital",
+      period: `${doctor?.experience || 5}+ Years`,
+      description: "Providing high-quality patient care and medical consultations."
+    });
+  }
 
   return (
     <motion.div
@@ -31,7 +75,7 @@ const DoctorExperience = () => {
             <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl border border-border/50 bg-background-secondary/20 backdrop-blur-sm shadow-sm hover:border-accent-secondary/30 transition-colors">
               <div className="flex items-center justify-between space-x-2 mb-1">
                 <div className="font-bold text-text-primary">{exp.role}</div>
-                <time className="text-xs font-medium text-accent-secondary bg-accent-secondary/10 px-2 py-0.5 rounded-full">{exp.period}</time>
+                <time className="text-xs font-medium text-accent-secondary bg-accent-secondary/10 px-4 py-2 rounded-full">{exp.period}</time>
               </div>
               <div className="text-sm font-semibold text-text-secondary mb-2">{exp.institution}</div>
               <div className="text-sm text-text-secondary leading-relaxed">{exp.description}</div>

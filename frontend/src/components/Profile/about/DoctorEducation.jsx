@@ -7,8 +7,10 @@ import * as Lucide from 'lucide-react';
 const DoctorEducation = () => {
   const { doctor } = useDoctorProfile();
   
-  // Extract qualifications from bio or use defaults
-  const qualifications = doctor.bio.split('.')[0].split(',').map(q => q.trim());
+  // Extract qualifications from education field, falling back to bio parsing or defaults
+  const qualifications = doctor.education
+    ? doctor.education.split(',').map(q => q.trim()).filter(Boolean)
+    : (doctor.bio ? doctor.bio.split('.')[0].split(',').map(q => q.trim()).filter(Boolean) : ["Certified Professional"]);
 
   return (
     <motion.div

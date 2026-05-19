@@ -19,7 +19,8 @@ const doctorSchema = new mongoose.Schema({
   queueCount: { type: Number, default: 0 },
   availableToday: { type: Boolean, default: false },
   availableThisWeek: { type: Boolean, default: false },
-  languages: [String],
+  education: { type: String, default: "" },
+  experienceDetails: { type: String, default: "" },
   bio: { type: String },
   verified: { type: Boolean, default: false },
   reviews: [{

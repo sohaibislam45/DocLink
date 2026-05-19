@@ -22,6 +22,15 @@ const HomePage = () => {
 
   const bannerText = settings?.announcementBanner;
 
+  React.useEffect(() => {
+    if (bannerText) {
+      const timer = setTimeout(() => {
+        setShowBanner(false);
+      }, 7000);
+      return () => clearTimeout(timer);
+    }
+  }, [bannerText]);
+
   return (
     <div className="flex flex-col">
       <AnimatePresence>

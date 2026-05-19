@@ -102,16 +102,15 @@ const Navbar = () => {
                   <p className="text-xs text-text-secondary uppercase tracking-widest font-bold">Account</p>
                   <p className="text-sm text-text-primary truncate">{user.email}</p>
                 </div>
-                {!location.pathname.startsWith('/patient') && !location.pathname.startsWith('/doctor') && !location.pathname.startsWith('/admin') && (
-                  <DropdownMenuItem onClick={() => {
-                    if (role === "admin") navigate("/admin/dashboard");
-                    else if (role === "doctor") navigate("/doctor/dashboard");
-                    else navigate("/patient/dashboard");
-                  }}>
-                    <Lucide.LayoutDashboard className="w-4 h-4" />
-                    My Dashboard
-                  </DropdownMenuItem>
-                )}
+
+                <DropdownMenuItem onClick={() => {
+                  if (role === "admin") navigate("/admin/dashboard");
+                  else if (role === "doctor") navigate("/doctor/dashboard");
+                  else navigate("/patient/dashboard");
+                }}>
+                  <Lucide.LayoutDashboard className="w-4 h-4" />
+                  My Dashboard
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => {
                   if (role === "admin") navigate("/admin/settings");
                   else if (role === "doctor") navigate("/doctor/availability");
@@ -187,20 +186,18 @@ const Navbar = () => {
                     <span className="text-xs text-text-secondary">{user.email}</span>
                   </div>
                 </div>
-                {!location.pathname.startsWith('/patient') && !location.pathname.startsWith('/doctor') && !location.pathname.startsWith('/admin') && (
-                  <Button 
-                    variant="ghost" 
-                    onClick={() => {
-                      if (role === "admin") navigate("/admin/dashboard");
-                      else if (role === "doctor") navigate("/doctor/dashboard");
-                      else navigate("/patient/dashboard");
-                      setIsMobileMenuOpen(false);
-                    }} 
-                    className="w-full justify-start"
-                  >
-                    <Lucide.LayoutDashboard className="w-5 h-5 mr-2" /> My Dashboard
-                  </Button>
-                )}
+                <Button 
+                  variant="ghost" 
+                  onClick={() => {
+                    if (role === "admin") navigate("/admin/dashboard");
+                    else if (role === "doctor") navigate("/doctor/dashboard");
+                    else navigate("/patient/dashboard");
+                    setIsMobileMenuOpen(false);
+                  }} 
+                  className="w-full justify-start"
+                >
+                  <Lucide.LayoutDashboard className="w-5 h-5 mr-2" /> My Dashboard
+                </Button>
                 <Button 
                   variant="ghost" 
                   onClick={() => {

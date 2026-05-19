@@ -15,6 +15,31 @@ import { profileSchema } from "../../schemas/profileSchema";
 import { updateProfile } from "firebase/auth";
 import { auth } from "../../lib/firebase";
 
+function ProfileImagePreview({ photoPreview, profile, user }) {
+  const [imgError, setImgError] = useState(false);
+  useEffect(() => {
+    setImgError(false);
+  }, [photoPreview]);
+
+  if (photoPreview && !imgError) {
+    return (
+      <img 
+        src={photoPreview} 
+        alt="Profile" 
+        referrerPolicy="no-referrer"
+        className="w-full h-full object-cover" 
+        onError={() => setImgError(true)}
+      />
+    );
+  }
+
+  return (
+    <div className="w-full h-full bg-gradient-to-br from-accent-primary to-blue-600 flex items-center justify-center text-white text-4xl font-bold">
+      {profile?.name?.[0]?.toUpperCase() || user?.displayName?.[0]?.toUpperCase() || "?"}
+    </div>
+  );
+}
+
 const PatientProfile = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -178,13 +203,7 @@ const PatientProfile = () => {
             <div className="flex flex-col items-center sm:flex-row sm:items-end gap-6 mb-10 pb-10 border-b border-border/50">
               <div className="relative group cursor-pointer" onClick={handlePhotoClick}>
                 <div className="w-32 h-32 rounded-3xl overflow-hidden animate-glow">
-                  {photoPreview ? (
-                    <img src={photoPreview} alt="Profile" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-accent-primary to-blue-600 flex items-center justify-center text-white text-4xl font-bold">
-                      {profile?.name?.[0]?.toUpperCase() || user?.displayName?.[0]?.toUpperCase() || "?"}
-                    </div>
-                  )}
+                  <ProfileImagePreview photoPreview={photoPreview} profile={profile} user={user} />
                 </div>
                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all rounded-3xl">
                   <Lucide.Camera className="w-8 h-8 text-white" />

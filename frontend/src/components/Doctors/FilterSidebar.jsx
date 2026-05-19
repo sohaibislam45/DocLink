@@ -5,7 +5,7 @@ import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { Slider } from '../ui/Slider';
 import { cn } from '../../lib/utils';
-import { fetchSpecialties, fetchCategories } from '../../api/common';
+import { fetchSpecialties } from '../../api/common';
 
 const FilterSection = ({ title, children, defaultOpen = true }) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
@@ -45,17 +45,13 @@ const FilterSection = ({ title, children, defaultOpen = true }) => {
 
 const FilterSidebar = ({ filters, onFilterChange, onReset }) => {
   const [specialties, setSpecialties] = useState([]);
-  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showAllSpecialties, setShowAllSpecialties] = useState(false);
 
   useState(() => {
     const loadSpecs = async () => {
-      const [specData, catData] = await Promise.all([
-        fetchSpecialties(),
-        fetchCategories()
-      ]);
+      const specData = await fetchSpecialties();
       setSpecialties(specData || []);
-      setCategories(catData || []);
       setLoading(false);
     };
     loadSpecs();
@@ -91,55 +87,30 @@ const FilterSidebar = ({ filters, onFilterChange, onReset }) => {
           {loading ? (
             <span className="text-xs text-text-secondary px-2">Loading...</span>
           ) : (
-            specialties.map((spec) => (
-              <button
-                key={spec.id || spec._id}
-                onClick={() => onFilterChange('specialty', spec.name)}
-                className={cn(
-                  "px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border",
-                  filters.specialty === spec.name
-                    ? "bg-accent-primary border-accent-primary text-white shadow-md shadow-accent-primary/20"
-                    : "bg-background-tertiary/50 border-border/50 text-text-secondary hover:border-accent-primary/50"
-                )}
-              >
-                {spec.name}
-              </button>
-            ))
-          )}
-        </div>
-      </FilterSection>
-
-      {/* Category Filter */}
-      <FilterSection title="Category">
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => onFilterChange('category', 'All')}
-            className={cn(
-              "px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border",
-              filters.category === 'All'
-                ? "bg-accent-primary border-accent-primary text-white shadow-md shadow-accent-primary/20"
-                : "bg-background-tertiary/50 border-border/50 text-text-secondary hover:border-accent-primary/50"
-            )}
-          >
-            All
-          </button>
-          {loading ? (
-            <span className="text-xs text-text-secondary px-2">Loading...</span>
-          ) : (
-            categories.map((cat) => (
-              <button
-                key={cat.id || cat._id}
-                onClick={() => onFilterChange('category', cat.name)}
-                className={cn(
-                  "px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border",
-                  filters.category === cat.name
-                    ? "bg-accent-primary border-accent-primary text-white shadow-md shadow-accent-primary/20"
-                    : "bg-background-tertiary/50 border-border/50 text-text-secondary hover:border-accent-primary/50"
-                )}
-              >
-                {cat.name}
-              </button>
-            ))
+            <>
+              {(showAllSpecialties ? specialties : specialties.slice(0, 5)).map((spec) => (
+                <button
+                  key={spec.id || spec._id}
+                  onClick={() => onFilterChange('specialty', spec.name)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border",
+                    filters.specialty === spec.name
+                      ? "bg-accent-primary border-accent-primary text-white shadow-md shadow-accent-primary/20"
+                      : "bg-background-tertiary/50 border-border/50 text-text-secondary hover:border-accent-primary/50"
+                  )}
+                >
+                  {spec.name}
+                </button>
+              ))}
+              {specialties.length > 5 && (
+                <button
+                  onClick={() => setShowAllSpecialties(!showAllSpecialties)}
+                  className="text-xs text-accent-primary font-semibold hover:underline mt-2 flex items-center justify-center gap-1 w-full"
+                >
+                  {showAllSpecialties ? "Show Less" : `+ More (${specialties.length - 5})`}
+                </button>
+              )}
+            </>
           )}
         </div>
       </FilterSection>

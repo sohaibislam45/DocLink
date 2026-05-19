@@ -7,8 +7,10 @@ export const adminDoctorSchema = z.object({
   fee:        z.coerce.number().min(1, "Fee required"),
   bio:        z.string().optional(),
   gender:     z.enum(["male", "female"]),
-  languages:  z.string().optional(), // comma-separated, split on submit
+  education:  z.string().min(1, "Education & Qualifications is required"),
+  experienceDetails: z.string().min(1, "Professional Experience is required"),
   rating:     z.coerce.number().min(0).max(5).default(0),
+  isOnline:   z.boolean().optional(),
 });
 
 export const adminPatientSchema = z.object({

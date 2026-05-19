@@ -9,9 +9,29 @@ import { Pencil, Trash2, Plus, Search, X } from "lucide-react";
 import { swalConfirm, swalSuccess, swalError, swalToast } from "../../lib/swal.js";
 import Pagination from "../../components/common/Pagination.jsx";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/Dialog.jsx";
+import { Switch } from "../../components/ui/Switch.jsx";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { adminDoctorSchema } from "../../schemas/adminSchemas.js";
+
+function DoctorAvatar({ doc }) {
+  const [imgError, setImgError] = useState(false);
+  return (
+    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-red-500 to-amber-500 flex items-center justify-center text-white text-xs font-bold shadow-sm overflow-hidden">
+      {doc.avatar && !imgError ? (
+        <img 
+          src={doc.avatar} 
+          alt={doc.name} 
+          referrerPolicy="no-referrer"
+          className="w-full h-full object-cover" 
+          onError={() => setImgError(true)}
+        />
+      ) : (
+        doc.initials || doc.name?.charAt(0).toUpperCase() || "D"
+      )}
+    </div>
+  );
+}
 
 export default function AdminDoctors() {
   const queryClient = useQueryClient();
@@ -54,6 +74,15 @@ export default function AdminDoctors() {
       queryClient.invalidateQueries({ queryKey: ["admin-doctors"] });
       queryClient.invalidateQueries({ queryKey: ["admin-stats"] });
       swalToast("success", "Doctor deleted successfully.");
+    },
+    onError: (err) => swalError("Failed", err.response?.data?.error || err.message),
+  });
+
+  const { mutate: handleToggleOnline } = useMutation({
+    mutationFn: ({ id, isOnline }) => updateDoctor(id, { isOnline }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-doctors"] });
+      swalToast("success", "Doctor status updated.");
     },
     onError: (err) => swalError("Failed", err.response?.data?.error || err.message),
   });
@@ -148,13 +177,7 @@ export default function AdminDoctors() {
                 <tr key={doc.id} className="hover:bg-red-500/[0.02] transition-colors">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-red-500 to-amber-500 flex items-center justify-center text-white text-xs font-bold shadow-sm overflow-hidden">
-                        {doc.avatar ? (
-                          <img src={doc.avatar} alt={doc.name} className="w-full h-full object-cover" />
-                        ) : (
-                          doc.initials
-                        )}
-                      </div>
+                      <DoctorAvatar doc={doc} />
                       <div>
                         <p className="font-medium text-[#0F172A] dark:text-[#F0F4FF]">{doc.name}</p>
                         <p className="text-xs text-[#475569] dark:text-[#8B9FC4]">{doc.experience}y experience</p>
@@ -165,13 +188,16 @@ export default function AdminDoctors() {
                   <td className="px-4 py-3 font-medium text-[#0F172A] dark:text-[#F0F4FF]">৳{doc.fee}</td>
                   <td className="px-4 py-3 text-amber-500 font-medium">★ {doc.rating || 0}</td>
                   <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase
-                      ${doc.isOnline
-                        ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
-                        : "bg-gray-100 text-gray-500 dark:bg-gray-500/10 dark:text-gray-400"
-                      }`}>
-                      {doc.isOnline ? "Online" : "Offline"}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <Switch 
+                        checked={doc.isOnline} 
+                        onCheckedChange={(checked) => handleToggleOnline({ id: doc.id, isOnline: checked })}
+                        className={doc.isOnline ? "bg-emerald-500" : "bg-gray-200 dark:bg-white/10"}
+                      />
+                      <span className={`text-[11px] font-semibold uppercase ${doc.isOnline ? "text-emerald-500" : "text-text-secondary"}`}>
+                        {doc.isOnline ? "Online" : "Offline"}
+                      </span>
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     {doc.verified
@@ -215,9 +241,11 @@ export default function AdminDoctors() {
 }
 
 function DoctorModal({ open, onOpenChange, doctor, onSubmit, isPending }) {
-  const { register, handleSubmit, reset, formState: { errors } } = useForm({
+  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm({
     resolver: zodResolver(adminDoctorSchema),
   });
+
+  const isOnlineValue = watch("isOnline", false);
 
   const [avatarUrl, setAvatarUrl] = React.useState("");
   const [uploading, setUploading] = React.useState(false);
@@ -233,14 +261,17 @@ function DoctorModal({ open, onOpenChange, doctor, onSubmit, isPending }) {
           fee: doctor.fee,
           bio: doctor.bio || "",
           gender: doctor.gender || "male",
-          languages: doctor.languages?.join(", ") || "",
+          education: doctor.education || "",
+          experienceDetails: doctor.experienceDetails || "",
           rating: doctor.rating || 0,
+          isOnline: doctor.isOnline || false,
         });
         setAvatarUrl(doctor.avatar || "");
       } else {
         reset({
           name: "", specialty: "", experience: 0, fee: 0, 
-          bio: "", gender: "male", languages: "", rating: 0
+          bio: "", gender: "male", education: "", experienceDetails: "", rating: 0,
+          isOnline: false,
         });
         setAvatarUrl("");
       }
@@ -275,7 +306,6 @@ function DoctorModal({ open, onOpenChange, doctor, onSubmit, isPending }) {
     const formattedData = {
       ...data,
       avatar: avatarUrl || undefined,
-      languages: data.languages ? data.languages.split(",").map(l => l.trim()) : [],
       initials: data.name ? data.name.split(" ").map(n => n[0]).join("").toUpperCase() : "DOC"
     };
     onSubmit(formattedData);
@@ -377,13 +407,37 @@ function DoctorModal({ open, onOpenChange, doctor, onSubmit, isPending }) {
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-[#475569] dark:text-[#8B9FC4] uppercase">Languages (comma separated)</label>
-            <input {...register("languages")} placeholder="English, Bengali" className="w-full mt-1 px-3 py-2 bg-white dark:bg-[#111D35] border border-red-500/10 rounded-lg text-sm" />
+            <label className="text-xs font-semibold text-[#475569] dark:text-[#8B9FC4] uppercase">Education & Qualifications</label>
+            <input {...register("education")} placeholder="e.g. MBBS, FCPS" className="w-full mt-1 px-3 py-2 bg-white dark:bg-[#111D35] border border-red-500/10 rounded-lg text-sm" />
+            {errors.education && <p className="text-red-500 text-[10px] mt-1">{errors.education.message}</p>}
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-[#475569] dark:text-[#8B9FC4] uppercase">Professional Experience</label>
+            <textarea {...register("experienceDetails")} placeholder="e.g. Senior Consultant at Dhaka Medical College (2020 - Present)" rows={3} className="w-full mt-1 px-3 py-2 bg-white dark:bg-[#111D35] border border-red-500/10 rounded-lg text-sm resize-none"></textarea>
+            {errors.experienceDetails && <p className="text-red-500 text-[10px] mt-1">{errors.experienceDetails.message}</p>}
           </div>
 
           <div>
             <label className="text-xs font-semibold text-[#475569] dark:text-[#8B9FC4] uppercase">Bio</label>
             <textarea {...register("bio")} rows={3} className="w-full mt-1 px-3 py-2 bg-white dark:bg-[#111D35] border border-red-500/10 rounded-lg text-sm resize-none"></textarea>
+          </div>
+
+          <div className="flex items-center justify-between p-3 rounded-lg border border-red-500/10 bg-[#111D35]/10 dark:bg-[#111D35]/50">
+            <div>
+              <label className="text-xs font-bold text-[#475569] dark:text-[#8B9FC4] uppercase block">Online Status</label>
+              <span className="text-[11px] text-text-secondary">Determine if doctor is available for online consultation</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch 
+                checked={isOnlineValue} 
+                onCheckedChange={(checked) => setValue("isOnline", checked)}
+                className={isOnlineValue ? "bg-emerald-500" : "bg-gray-200 dark:bg-white/10"}
+              />
+              <span className={`text-[11px] font-semibold uppercase ${isOnlineValue ? "text-emerald-500" : "text-text-secondary"}`}>
+                {isOnlineValue ? "Online" : "Offline"}
+              </span>
+            </div>
           </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t border-red-500/10">

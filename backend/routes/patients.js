@@ -41,7 +41,7 @@ router.post("/", verifyToken, async (req, res) => {
       uid: req.user.uid,
       name: req.body.name || req.user.name || "User",
       email: req.user.email,
-      photoURL: req.user.picture || "",
+      photoURL: req.body.photoURL || req.user.picture || "",
     });
 
     await patient.save();

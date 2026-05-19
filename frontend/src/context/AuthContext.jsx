@@ -38,7 +38,8 @@ export const AuthProvider = ({ children }) => {
             const { createOrFetchPatient } = await import("../api/patients");
             await createOrFetchPatient({
               name: currentUser.displayName,
-              email: currentUser.email
+              email: currentUser.email,
+              photoURL: currentUser.photoURL
             });
           } catch (error) {
             console.error("Error syncing patient profile:", error);

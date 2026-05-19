@@ -22,7 +22,7 @@ export default function AdminLoginPage() {
   const { loginWithRole } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
 
-  const { register, handleSubmit, formState: { errors } } = useForm({
+  const { register, handleSubmit, setValue, formState: { errors } } = useForm({
     resolver: zodResolver(adminLoginSchema),
   });
 
@@ -53,6 +53,11 @@ export default function AdminLoginPage() {
   });
 
   const onSubmit = (data) => login(data);
+
+  const handleDemoCredentials = () => {
+    setValue("email", "admin@doclink.com");
+    setValue("password", "password123");
+  };
 
   return (
     <div className="min-h-screen bg-white dark:bg-[#0A0F1E] flex items-center justify-center px-4 relative overflow-hidden">
@@ -160,6 +165,15 @@ export default function AdminLoginPage() {
               <><Shield className="w-4 h-4" /> Sign In as Admin</>
             )}
           </motion.button>
+
+          {/* Autofill Demo Credentials */}
+          <button
+            type="button"
+            onClick={handleDemoCredentials}
+            className="w-full py-2.5 rounded-lg border border-dashed border-red-500/30 text-red-500 hover:bg-red-500/5 text-sm font-semibold transition-colors mt-2"
+          >
+            Demo Admin Credentials
+          </button>
         </form>
 
         <p className="text-center text-xs text-[#475569] dark:text-[#8B9FC4] mt-6">
