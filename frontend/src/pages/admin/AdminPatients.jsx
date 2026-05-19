@@ -112,8 +112,12 @@ export default function AdminPatients() {
                 <tr key={patient.uid} className="hover:bg-red-500/[0.02] transition-colors">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-red-500/10 flex items-center justify-center text-red-500 text-xs font-bold border border-red-500/20">
-                        {patient.name?.charAt(0).toUpperCase() || "P"}
+                      <div className="w-9 h-9 rounded-full bg-red-500/10 flex items-center justify-center text-red-500 text-xs font-bold border border-red-500/20 overflow-hidden">
+                        {patient.photoURL ? (
+                          <img src={patient.photoURL} alt={patient.name} className="w-full h-full object-cover" />
+                        ) : (
+                          patient.name?.charAt(0).toUpperCase() || "P"
+                        )}
                       </div>
                       <p className="font-medium text-[#0F172A] dark:text-[#F0F4FF]">{patient.name}</p>
                     </div>
@@ -170,6 +174,10 @@ function PatientModal({ open, onOpenChange, patient, onSubmit, isPending }) {
     resolver: zodResolver(adminPatientSchema),
   });
 
+  const [photoURL, setPhotoURL] = React.useState("");
+  const [uploading, setUploading] = React.useState(false);
+  const fileInputRef = React.useRef(null);
+
   React.useEffect(() => {
     if (open && patient) {
       reset({
@@ -180,8 +188,40 @@ function PatientModal({ open, onOpenChange, patient, onSubmit, isPending }) {
         bloodType: patient.bloodType || "",
         allergies: patient.allergies || "",
       });
+      setPhotoURL(patient.photoURL || "");
     }
   }, [open, patient, reset]);
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+      const res = await fetch(
+        `https://api.imgbb.com/1/upload?key=92c4f48b8520017aa469eba82303d7c3`,
+        { method: "POST", body: formData }
+      );
+      const json = await res.json();
+      if (json.success) {
+        setPhotoURL(json.data.url);
+      } else {
+        swalError("Upload Failed", "Could not upload image to ImgBB.");
+      }
+    } catch (err) {
+      swalError("Upload Failed", err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleFormSubmit = (data) => {
+    onSubmit({
+      ...data,
+      photoURL: photoURL || undefined
+    });
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -195,7 +235,53 @@ function PatientModal({ open, onOpenChange, patient, onSubmit, isPending }) {
           </div>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 pt-4">
+        <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4 pt-4">
+          
+          {/* Patient Photo Upload */}
+          <div className="flex items-center gap-4">
+            <div
+              className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center 
+                          text-red-500 text-lg font-bold shrink-0 overflow-hidden 
+                          border-2 border-red-500/20 cursor-pointer"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {uploading ? (
+                <svg className="animate-spin w-5 h-5 text-red-500" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                </svg>
+              ) : photoURL ? (
+                <img src={photoURL} alt="avatar" className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-xs font-bold opacity-80">Photo</span>
+              )}
+            </div>
+            <div className="flex-1">
+              <label className="text-xs font-semibold text-[#475569] dark:text-[#8B9FC4] uppercase">
+                Patient Photo
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                ref={fileInputRef}
+                onChange={handleImageUpload}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="mt-1 flex items-center gap-2 px-3 py-2 bg-white dark:bg-[#111D35] 
+                           border border-red-500/10 rounded-lg text-sm text-[#475569] 
+                           dark:text-[#8B9FC4] hover:border-red-500/30 transition-colors 
+                           disabled:opacity-50 w-full"
+              >
+                <Pencil className="w-3 h-3" />
+                {uploading ? "Uploading..." : photoURL ? "Change Photo" : "Upload Photo"}
+              </button>
+            </div>
+          </div>
+
           <div>
             <label className="text-xs font-semibold text-[#475569] dark:text-[#8B9FC4] uppercase">Full Name</label>
             <input {...register("name")} className="w-full mt-1 px-3 py-2 bg-white dark:bg-[#111D35] border border-red-500/10 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/30" />
@@ -243,7 +329,7 @@ function PatientModal({ open, onOpenChange, patient, onSubmit, isPending }) {
             <button type="button" onClick={() => onOpenChange(false)} className="px-4 py-2 text-sm font-medium text-[#475569] dark:text-[#8B9FC4] hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg transition-colors">
               Cancel
             </button>
-            <button type="submit" disabled={isPending} className="px-6 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-bold rounded-lg transition-colors disabled:opacity-50">
+            <button type="submit" disabled={isPending || uploading} className="px-6 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-bold rounded-lg transition-colors disabled:opacity-50">
               {isPending ? "Saving..." : "Update Patient"}
             </button>
           </div>

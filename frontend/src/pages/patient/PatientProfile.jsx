@@ -12,12 +12,16 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { profileSchema } from "../../schemas/profileSchema";
+import { updateProfile } from "firebase/auth";
+import { auth } from "../../lib/firebase";
 
 const PatientProfile = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const fileInputRef = useRef(null);
   const [photoPreview, setPhotoPreview] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const { data: profile, isLoading: loading, error: queryError } = useQuery({
     queryKey: ["patientProfile", user?.uid],
@@ -34,7 +38,7 @@ const PatientProfile = () => {
   } = useForm({
     resolver: zodResolver(profileSchema),
     defaultValues: {
-      fullName: "",
+      name: "",
       phone: "",
       dob: "",
       gender: "",
@@ -46,14 +50,14 @@ const PatientProfile = () => {
   useEffect(() => {
     if (profile) {
       reset({
-        fullName: profile.fullName || user?.displayName || "",
+        name: profile.name || user?.displayName || "",
         phone: profile.phone || "",
         dob: profile.dob ? profile.dob.split('T')[0] : "",
         gender: profile.gender || "",
         bloodType: profile.bloodType || "",
         allergies: profile.allergies || "",
       });
-      setPhotoPreview(profile.photoURL);
+      setPhotoPreview(profile.photoURL || user?.photoURL);
     }
   }, [profile, user, reset]);
 
@@ -75,13 +79,54 @@ const PatientProfile = () => {
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      setSelectedFile(file);
       const url = URL.createObjectURL(file);
       setPhotoPreview(url);
     }
   };
 
-  const onSubmit = (data) => {
-    updateMutation.mutate(data);
+  const uploadToImgBB = async (file) => {
+    const formData = new FormData();
+    formData.append("image", file);
+    const res = await fetch(
+      `https://api.imgbb.com/1/upload?key=92c4f48b8520017aa469eba82303d7c3`,
+      { method: "POST", body: formData }
+    );
+    const json = await res.json();
+    if (!json.success) throw new Error("Photo upload failed");
+    return json.data.url;
+  };
+
+  const onSubmit = async (data) => {
+    setIsUploading(true);
+    try {
+      let photoURL = profile?.photoURL || user?.photoURL;
+
+      // 1. Upload to ImgBB if new file selected
+      if (selectedFile) {
+        photoURL = await uploadToImgBB(selectedFile);
+      }
+
+      // 2. Update Backend
+      await updateMutation.mutateAsync({
+        ...data,
+        photoURL
+      });
+
+      // 3. Update Firebase Profile
+      if (auth.currentUser) {
+        await updateProfile(auth.currentUser, {
+          displayName: data.name,
+          photoURL: photoURL
+        });
+      }
+
+      setSelectedFile(null);
+    } catch (err) {
+      showError(err.message || "Failed to update profile", "Error");
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const formatDate = (dateString) => {
@@ -133,11 +178,11 @@ const PatientProfile = () => {
             <div className="flex flex-col items-center sm:flex-row sm:items-end gap-6 mb-10 pb-10 border-b border-border/50">
               <div className="relative group cursor-pointer" onClick={handlePhotoClick}>
                 <div className="w-32 h-32 rounded-3xl overflow-hidden animate-glow">
-                  {photoPreview || user?.photoURL ? (
-                    <img src={photoPreview || user?.photoURL} alt="Profile" className="w-full h-full object-cover" />
+                  {photoPreview ? (
+                    <img src={photoPreview} alt="Profile" className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full bg-gradient-to-br from-accent-primary to-blue-600 flex items-center justify-center text-white text-4xl font-bold">
-                      {profile?.fullName?.[0]?.toUpperCase() || user?.displayName?.[0]?.toUpperCase() || "?"}
+                      {profile?.name?.[0]?.toUpperCase() || user?.displayName?.[0]?.toUpperCase() || "?"}
                     </div>
                   )}
                 </div>
@@ -170,10 +215,10 @@ const PatientProfile = () => {
               <div className="space-y-2">
                 <label className="text-sm text-text-secondary font-medium">Full Name</label>
                 <Input
-                  {...register("fullName")}
-                  className={`bg-background-tertiary border-border text-text-primary focus:ring-accent-primary/30 h-11 ${errors.fullName ? "border-red-500/50" : ""}`}
+                  {...register("name")}
+                  className={`bg-background-tertiary border-border text-text-primary focus:ring-accent-primary/30 h-11 ${errors.name ? "border-red-500/50" : ""}`}
                 />
-                {errors.fullName && <p className="text-red-500 text-xs mt-1">{errors.fullName.message}</p>}
+                {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>}
               </div>
               <div className="space-y-2">
                 <label className="text-sm text-text-secondary font-medium opacity-50">Email Address (Read Only)</label>
@@ -253,13 +298,13 @@ const PatientProfile = () => {
 
             <Button
               type="submit"
-              disabled={updateMutation.isLoading}
+              disabled={updateMutation.isLoading || isUploading}
               className="mt-10 w-full bg-accent-primary hover:brightness-110 text-white h-12 font-bold shadow-lg shadow-accent-primary/20 active:scale-[0.98] transition-all"
             >
-              {updateMutation.isLoading ? (
+              {updateMutation.isLoading || isUploading ? (
                 <>
                   <Lucide.Loader2 className="w-5 h-5 animate-spin mr-2" />
-                  Updating Health Profile...
+                  {isUploading ? "Uploading Data..." : "Updating Health Profile..."}
                 </>
               ) : (
                 "Save Profile Changes"

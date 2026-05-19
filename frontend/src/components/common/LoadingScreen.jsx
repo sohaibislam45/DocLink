@@ -2,7 +2,7 @@ import React from 'react';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '../../context/ThemeContext';
-import searchDoctorLottie from '../../assets/animations/Search Doctor.lottie';
+import searchDoctorLottie from '../../assets/animations/Search Doctor.lottie?url';
 
 /**
  * A beautiful, full-screen loading component that handles light and dark themes.
@@ -11,7 +11,7 @@ import searchDoctorLottie from '../../assets/animations/Search Doctor.lottie';
  * @param {boolean} show - Whether to display the loading screen.
  * @param {string} message - Optional message to display below the animation.
  */
-const LoadingScreen = ({ show = true, message = "Searching for the best doctors..." }) => {
+const LoadingScreen = ({ show = true, message = "Loading..." }) => {
   const { isDarkMode } = useTheme();
 
   return (

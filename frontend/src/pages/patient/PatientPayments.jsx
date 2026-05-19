@@ -71,7 +71,7 @@ const PatientPayments = () => {
   );
 
   const totalAmountPaid = totalSuccessful.reduce(
-    (sum, p) => sum + (p.amountPaid || 0),
+    (sum, p) => sum + ((p.totalAmount || 0) / 100),
     0
   );
 
@@ -282,7 +282,7 @@ const PatientPayments = () => {
                             {dateStr}
                           </td>
                           <td className="p-4 font-black text-text-primary">
-                            ৳ {p.amountPaid || 0}
+                            ৳ {(p.totalAmount || 0) / 100}
                           </td>
                           <td className="p-4">
                             {getStatusBadge(p.status)}
@@ -333,7 +333,7 @@ const PatientPayments = () => {
                           <h4 className="font-bold text-text-primary text-base">Dr. {p.doctorName}</h4>
                           <span className="text-xs text-text-secondary">{dateStr}</span>
                         </div>
-                        <span className="font-extrabold text-text-primary text-lg">৳ {p.amountPaid}</span>
+                        <span className="font-extrabold text-text-primary text-lg">৳ {(p.totalAmount || 0) / 100}</span>
                       </div>
 
                       <div className="grid grid-cols-2 gap-2 text-xs border-t border-b border-border py-3">

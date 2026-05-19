@@ -15,3 +15,7 @@ export const updatePatientProfile = async (data) => {
 export const fetchPatients = async () => {
   return axiosClient.get("/consultations/my"); // Temporary mapping to history
 };
+
+export const fetchPatientStats = async () => {
+  return axiosClient.get("/patients/stats");
+};

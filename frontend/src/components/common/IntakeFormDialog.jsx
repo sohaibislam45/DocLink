@@ -23,6 +23,8 @@ import {
   Clock, 
   AlertCircle 
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { fetchPublicSettings } from '../../api/admin';
 
 const IntakeFormDialog = ({ open, onClose, doctor }) => {
   const [step, setStep] = useState(1);
@@ -91,8 +93,13 @@ const IntakeFormDialog = ({ open, onClose, doctor }) => {
     }
   };
 
+  const { data: settings } = useQuery({
+    queryKey: ["public-settings"],
+    queryFn: fetchPublicSettings,
+  });
+
+  const platformFee = settings?.platformFee || 50;
   const consultationFee = doctor?.fee || 0;
-  const platformFee = 50;
   const totalAmount = consultationFee + platformFee;
 
   return (

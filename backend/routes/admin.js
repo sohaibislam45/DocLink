@@ -255,13 +255,18 @@ router.patch("/settings", verifyAdmin, async (req, res) => {
 router.get("/public-settings", async (req, res) => {
   try {
     const settings = await Setting.find({
-      key: { $in: ["announcementBanner", "maintenanceMode"] }
+      key: { $in: ["announcementBanner", "maintenanceMode", "platformFee"] }
     });
     const result = settings.reduce((acc, s) => {
       acc[s.key] = s.value;
       return acc;
     }, {});
-    res.json(result);
+    res.json({
+      platformFee: result.platformFee ?? 5, // Default to 5% if not set
+      maintenanceMode: result.maintenanceMode ?? false,
+      announcementBanner: result.announcementBanner ?? "",
+      ...result
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -5,6 +5,7 @@ import { verifyToken } from "../middleware/verifyToken.js";
 import { Doctor } from "./doctors.js";
 import { QueueEntry } from "./queues.js";
 import { getIO } from "../server.js";
+import { Setting } from "./admin.js";
 
 const router = express.Router();
 
@@ -33,7 +34,6 @@ export const Payment = mongoose.model("Payment", paymentSchema);
 
 // Initialize Stripe (using the exported getter or fallback during testing)
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
-const PLATFORM_FEE_BDT = 50; // ৳50 platform charge
 
 // --- REST ROUTE: CREATE CHECKOUT SESSION ---
 router.post("/create-checkout-session", verifyToken, async (req, res) => {
@@ -62,8 +62,11 @@ router.post("/create-checkout-session", verifyToken, async (req, res) => {
 
     // 3. (Optional duplicate checks relaxed for seamless user navigation)
 
+    const settings = await Setting.findOne({ key: "platformFee" });
+    const platformFeeBDT = settings ? settings.value : 50; // Default to 50 BDT if not configured
+    
     const consultationFeeCents = doctor.fee * 100;   // e.g. 1000 BDT -> 100000 poisha
-    const platformFeeCents = PLATFORM_FEE_BDT * 100; // 50 BDT -> 5000 poisha
+    const platformFeeCents = platformFeeBDT * 100;   // treat as fixed BDT amount
     const totalCents = consultationFeeCents + platformFeeCents;
 
     // 4. Create Stripe Checkout Session

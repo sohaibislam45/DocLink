@@ -20,7 +20,8 @@ export const initSocket = (io) => {
   });
 
   io.on("connection", (socket) => {
-    console.log(`Socket connected: ${socket.id} | User: ${socket.user.uid}`);
+    // console.log(`Socket connected: ${socket.id} | User: ${socket.user.uid}`);
+    console.log("Socket connected");
 
     // --- JOIN DOCTOR ROOM ---
     socket.on("join:room", async ({ doctorId }) => {

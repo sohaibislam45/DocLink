@@ -21,7 +21,7 @@ export const adminPatientSchema = z.object({
 });
 
 export const settingsSchema = z.object({
-  platformFee:         z.coerce.number().min(0, "Fee must be 0 or more").max(50),
+  platformFee:         z.coerce.number().min(0, "Fee must be 0 or more").max(500),
   maintenanceMode:     z.boolean(),
   announcementBanner:  z.string().max(200, "Max 200 characters").optional(),
 });

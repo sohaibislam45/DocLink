@@ -68,7 +68,7 @@ export default function AdminSettings() {
             <div className="space-y-4">
               <div>
                 <label className="text-sm font-medium text-[#475569] dark:text-[#8B9FC4]">
-                  Platform Fee (%)
+                  Platform Fee (৳)
                 </label>
                 <div className="mt-1 flex items-center gap-3">
                   <input
@@ -77,7 +77,7 @@ export default function AdminSettings() {
                     className="w-32 px-3 py-2 bg-white dark:bg-[#111D35] border border-red-500/10 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/30"
                   />
                   <span className="text-xs text-[#475569] dark:text-[#8B9FC4]">
-                    The percentage collected from every doctor consultation fee.
+                    The fixed amount in Taka collected from every consultation.
                   </span>
                 </div>
                 {errors.platformFee && <p className="text-red-500 text-xs mt-1">{errors.platformFee.message}</p>}

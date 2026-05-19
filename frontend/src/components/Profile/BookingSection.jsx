@@ -7,10 +7,20 @@ import { useDoctorProfile } from '../../context/DoctorProfileContext';
 import QueuePanel from '../common/QueuePanel';
 import { useNavigate } from 'react-router-dom';
 import { Skeleton } from '../ui/Skeleton';
+import { useQuery } from '@tanstack/react-query';
+import { fetchPublicSettings } from '../../api/admin';
 
 const BookingSection = ({ queueState, onOpenIntakeForm }) => {
   const { doctor } = useDoctorProfile();
   const navigate = useNavigate();
+
+  const { data: settings } = useQuery({
+    queryKey: ["public-settings"],
+    queryFn: fetchPublicSettings,
+  });
+
+  const platformFeeAmount = settings?.platformFee || 50;
+  const totalFee = (doctor?.fee || 0) + platformFeeAmount;
 
   // If loading the queue state, render a nice skeleton card to prevent CTA flashing
   if (queueState.loading) {
@@ -69,11 +79,18 @@ const BookingSection = ({ queueState, onOpenIntakeForm }) => {
       >
         <Card className="bg-background-secondary/80 backdrop-blur-2xl border-accent-primary/20 shadow-2xl shadow-accent-primary/5 rounded-3xl overflow-hidden">
           <CardContent className="p-8 space-y-8">
-            <div className="flex items-baseline justify-between">
-              <div>
-                <span className="text-4xl font-black text-accent-primary">৳{doctor.fee}</span>
-                <span className="text-text-secondary ml-1 font-medium">/ session</span>
+            <div className="flex flex-col">
+              <div className="flex items-baseline justify-between w-full">
+                <div>
+                  <span className="text-4xl font-black text-accent-primary">৳{totalFee}</span>
+                  <span className="text-text-secondary ml-1 font-medium">/ session</span>
+                </div>
               </div>
+              {platformFeeAmount > 0 && (
+                <p className="text-[10px] text-text-secondary mt-1 opacity-70">
+                  (Incl. ৳{platformFeeAmount} service charge)
+                </p>
+              )}
             </div>
 
             {/* Offline State */}

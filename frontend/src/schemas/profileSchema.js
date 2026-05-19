@@ -1,7 +1,7 @@
 import * as z from "zod";
 
 export const profileSchema = z.object({
-  fullName: z.string().min(2, "Full name must be at least 2 characters"),
+  name: z.string().min(2, "Full name must be at least 2 characters"),
   phone: z.string().min(10, "Phone number must be at least 10 characters"),
   dob: z.string().min(1, "Date of birth is required"),
   gender: z.string().min(1, "Gender is required"),
