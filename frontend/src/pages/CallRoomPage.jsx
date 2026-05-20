@@ -3,7 +3,6 @@ import { useParams, useNavigate } from "react-router-dom";
 import { DailyProvider, useDaily, useLocalSessionId,
          useParticipantIds, useVideoTrack, useAudioTrack } from "@daily-co/daily-react";
 import { fetchRoom, getMeetingToken, endRoom } from "../api/rooms.js";
-import { getSocket } from "../lib/socket.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mic, MicOff, Video, VideoOff, PhoneOff } from "lucide-react";
@@ -50,8 +49,7 @@ export default function CallRoomPage() {
 function CallRoom({ room, roomId, isDoctor }) {
   const daily = useDaily();
   const navigate = useNavigate();
-  const socket = getSocket();
-  const { user } = useAuth();
+  const { user, socket } = useAuth();
 
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);

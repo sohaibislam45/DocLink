@@ -90,6 +90,34 @@ export const initSocket = (io) => {
         entry.completedAt = new Date();
         await entry.save();
 
+        // Create Consultation document automatically
+        try {
+          const { Doctor } = await import("../routes/doctors.js");
+          const { Consultation } = await import("../routes/consultations.js");
+
+          const doctor = await Doctor.findOne({ id: doctorId });
+          const doctorName = doctor ? doctor.name : "Unknown Doctor";
+          const specialty = doctor ? doctor.specialty : "General Medicine";
+          const doctorInitials = doctor ? doctor.initials : "DR";
+
+          const newConsultation = new Consultation({
+            id: `cons_${Math.random().toString(36).substring(2, 9)}`,
+            patientUid: entry.patientUid,
+            doctorId: doctorId,
+            doctorName: doctorName,
+            doctorInitials: doctorInitials,
+            specialty: specialty,
+            date: new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
+            duration: "10 mins",
+            status: "Completed",
+            summary: entry.reason || "General Consultation",
+          });
+          await newConsultation.save();
+          console.log(`Successfully created Consultation document for ${entry.patientUid}`);
+        } catch (consultationErr) {
+          console.error("Error creating Consultation document on queue:done:", consultationErr);
+        }
+
         // Recalculate positions for remaining patients
         await QueueEntry.updateMany(
           { 

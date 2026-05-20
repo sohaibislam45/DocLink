@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import * as Lucide from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useDoctorProfile } from "../../context/DoctorProfileContext";
 import {
   Dialog,
   DialogContent,
@@ -13,10 +12,11 @@ import { Input } from "../../components/ui/Input";
 import { Button } from "../../components/ui/Button";
 import { cn } from "../../lib/utils";
 import { fetchPatients } from "../../api/patients";
+import { useAuth } from "../../context/AuthContext";
 
 const DoctorPatientsPage = () => {
+  const { user } = useAuth();
   const navigate = useNavigate();
-  const { doctor } = useDoctorProfile();
   const [query, setQuery] = useState("");
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [patients, setPatients] = useState([]);
@@ -24,6 +24,8 @@ const DoctorPatientsPage = () => {
   const [specialties, setSpecialties] = useState([]);
 
   useEffect(() => {
+    if (!user?.uid) return;
+
     const loadData = async () => {
       try {
         setLoading(true);
@@ -45,12 +47,12 @@ const DoctorPatientsPage = () => {
       }
     };
     loadData();
-  }, []);
+  }, [user?.uid]);
 
   const filtered = patients.filter(
     (p) =>
-      p.name.toLowerCase().includes(query.toLowerCase()) ||
-      p.diagnosis.toLowerCase().includes(query.toLowerCase())
+      (p.name || "").toLowerCase().includes(query.toLowerCase()) ||
+      (p.diagnosis || "").toLowerCase().includes(query.toLowerCase())
   );
 
   return (
@@ -218,7 +220,7 @@ const DoctorPatientsPage = () => {
                 onClick={() => {
                   setSelectedPatient(null);
                   navigate(
-                    `/doctor/prescriptions/new?patient=${encodeURIComponent(selectedPatient.name)}`
+                    `/doctor/prescriptions/new?patient=${encodeURIComponent(selectedPatient.name)}&uid=${encodeURIComponent(selectedPatient.patientUid || "")}`
                   );
                 }}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white border-none h-11 font-semibold"

@@ -5,8 +5,10 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/Button";
 import { useAuth } from "../../context/AuthContext";
 import { useSocketQueue } from "../../hooks/useSocketQueue";
-import { getSocket } from "../../lib/socket";
 import { cn } from "../../lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import { fetchDoctorDashboardData } from "../../api/doctors";
+
 
 const StatCard = ({ icon: Icon, label, value, trend, color }) => (
   <motion.div
@@ -33,9 +35,8 @@ const StatCard = ({ icon: Icon, label, value, trend, color }) => (
 
 const DoctorOverview = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, socket } = useAuth();
   const { queue, loading } = useSocketQueue({ id: user?.uid });
-  const socket = getSocket();
 
   const waitingPatients = queue.filter(p => p.status === "waiting");
   const currentPatient = queue.find(p => p.status === "called" || p.status === "in-consultation");
@@ -45,11 +46,17 @@ const DoctorOverview = () => {
     socket.emit("queue:call-next", { doctorId: user.uid });
   };
 
+  const { data: dashboardData, isLoading: isDashboardLoading } = useQuery({
+    queryKey: ["doctor-dashboard", user?.uid],
+    queryFn: fetchDoctorDashboardData,
+    enabled: !!user?.uid,
+  });
+
   const stats = [
     { icon: Lucide.Users, label: "Patients in Queue", value: waitingPatients.length.toString(), color: "bg-blue-500/10 text-blue-500" },
-    { icon: Lucide.Activity, label: "Today's Consultations", value: "12", trend: "+15%", color: "bg-emerald-500/10 text-emerald-500" },
-    { icon: Lucide.Clock, label: "Avg. Wait Time", value: "14 min", trend: "-5%", color: "bg-amber-500/10 text-amber-500" },
-    { icon: Lucide.Star, label: "Patient Rating", value: "4.9", trend: "+0.2", color: "bg-purple-500/10 text-purple-500" },
+    { icon: Lucide.Activity, label: "Today's Consultations", value: isDashboardLoading ? "..." : (dashboardData?.stats?.todayConsultations ?? 0).toString(), color: "bg-emerald-500/10 text-emerald-500" },
+    { icon: Lucide.Clock, label: "Avg. Wait Time", value: isDashboardLoading ? "..." : `${dashboardData?.stats?.avgWaitTime ?? 15} min`, color: "bg-amber-500/10 text-amber-500" },
+    { icon: Lucide.Star, label: "Patient Rating", value: isDashboardLoading ? "..." : (dashboardData?.stats?.rating ?? 5.0).toFixed(1), color: "bg-purple-500/10 text-purple-500" },
   ];
 
   return (
@@ -57,7 +64,7 @@ const DoctorOverview = () => {
       {/* Welcome Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-text-primary">Welcome back, Dr. {user?.displayName?.split(" ")[1] || "Doc"}</h2>
+          <h2 className="text-2xl font-bold text-text-primary">Welcome back, {dashboardData?.doctor?.name || user?.displayName || "Doctor"}</h2>
           <p className="text-text-secondary mt-1">You have {waitingPatients.length} patients waiting in your queue today.</p>
         </div>
         <div className="flex items-center gap-3">

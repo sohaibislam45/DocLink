@@ -5,7 +5,6 @@ import { useAuth } from "../../context/AuthContext";
 import * as Lucide from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/Avatar";
 import { cn } from "../../lib/utils";
-import { getSocket } from "../../lib/socket.js";
 import useDoctorOnlineStatus from "../../hooks/useDoctorOnlineStatus";
 
 const SidebarItem = ({ icon: Icon, label, href, active, external, badge }) => {
@@ -38,13 +37,12 @@ const SidebarItem = ({ icon: Icon, label, href, active, external, badge }) => {
 };
 
 const DoctorDashboardLayout = () => {
-  const { user, logout } = useAuth();
+  const { user, profile, socket, logout } = useAuth();
   const location = useLocation();
   const { isOnline, toggleOnline } = useDoctorOnlineStatus();
   const [queueCount, setQueueCount] = React.useState(0);
 
   React.useEffect(() => {
-    const socket = getSocket();
     if (!socket) return;
 
     // Handle initial state if already connected
@@ -60,7 +58,7 @@ const DoctorDashboardLayout = () => {
       socket.off("queue:state");
       socket.off("queue:updated");
     };
-  }, []);
+  }, [socket]);
 
   const navItems = [
     { icon: Lucide.LayoutDashboard, label: "Overview", href: "/doctor/dashboard" },
@@ -93,9 +91,11 @@ const DoctorDashboardLayout = () => {
     visible: { x: 0, opacity: 1 },
   };
 
-  const initials = user?.displayName
-    ? user.displayName.split(" ").map((n) => n[0]).join("").toUpperCase()
-    : user?.email?.[0]?.toUpperCase();
+  const displayName = profile?.name || user?.displayName || "Doctor";
+  const photoURL = profile?.avatar || user?.photoURL;
+  const initials = displayName
+    ? displayName.split(" ").map((n) => n[0]).join("").toUpperCase()
+    : "DR";
 
   return (
     <div className="min-h-screen bg-background-primary flex flex-col pt-20 transition-colors duration-300">
@@ -110,13 +110,13 @@ const DoctorDashboardLayout = () => {
           {/* Doctor Info */}
           <motion.div variants={itemVariants} className="bg-background-secondary border border-border rounded-2xl p-5 flex flex-col items-center text-center shadow-sm">
             <Avatar className="w-16 h-16 mb-3 border-2 border-accent-primary/30">
-              <AvatarImage src={user?.photoURL} />
+              <AvatarImage src={photoURL} />
               <AvatarFallback className="bg-gradient-to-br from-accent-primary to-accent-secondary text-white text-xl font-bold">
                 {initials}
               </AvatarFallback>
             </Avatar>
             <h3 className="text-text-primary font-semibold truncate w-full px-2 text-sm">
-              {user?.displayName || "Doctor"}
+              {displayName}
             </h3>
             <span className="mt-1.5 text-xs font-semibold bg-accent-primary/10 text-accent-primary px-3 py-1 rounded-full border border-accent-primary/20">
               Doctor
@@ -154,7 +154,7 @@ const DoctorDashboardLayout = () => {
               <SidebarItem
                 icon={Lucide.ExternalLink}
                 label="View My Public Profile"
-                href="/doctors/doc-001"
+                href={`/doctors/${user?.uid}`}
                 active={false}
                 external
               />

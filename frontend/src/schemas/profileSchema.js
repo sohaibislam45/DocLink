@@ -11,10 +11,10 @@ export const profileSchema = z.object({
 
 export const doctorProfileSchema = z.object({
   fullName: z.string().min(2, "Full name must be at least 2 characters"),
-  phone: z.string().min(6, "Please enter a valid phone number"),
+  phone: z.string().optional().or(z.literal("")),
   specialty: z.string().min(1, "Specialty is required"),
   experience: z.coerce.number().min(0, "Experience cannot be negative"),
   fee: z.coerce.number().min(0, "Fee cannot be negative"),
-  bio: z.string().max(500, "Bio must be less than 500 characters"),
-  education: z.string().min(2, "Education and qualifications are required"),
+  bio: z.string().max(500, "Bio must be less than 500 characters").optional().or(z.literal("")),
+  education: z.string().optional().or(z.literal("")),
 });

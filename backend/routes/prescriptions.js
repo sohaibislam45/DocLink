@@ -28,7 +28,9 @@ const Prescription = mongoose.model("Prescription", prescriptionSchema);
 // GET /api/prescriptions/my - Requires Auth
 router.get("/my", verifyToken, async (req, res) => {
   try {
-    const prescriptions = await Prescription.find({ patientUid: req.user.uid }).sort({ createdAt: -1 });
+    const prescriptions = await Prescription.find({
+      $or: [{ patientUid: req.user.uid }, { doctorId: req.user.uid }]
+    }).sort({ createdAt: -1 });
     res.json(prescriptions);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -38,9 +40,14 @@ router.get("/my", verifyToken, async (req, res) => {
 // POST /api/prescriptions - Requires Auth
 router.post("/", verifyToken, async (req, res) => {
   try {
+    const patientUid = req.body.patientUid || req.user.uid;
+    const doctorId = req.body.doctorId || req.user.uid;
+
     const newPrescription = new Prescription({
       ...req.body,
-      patientUid: req.user.uid,
+      id: req.body.id || `rx_${Math.random().toString(36).substring(2, 9)}`,
+      patientUid,
+      doctorId,
     });
     await newPrescription.save();
     res.status(201).json(newPrescription);

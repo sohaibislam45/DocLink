@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import * as Lucide from "lucide-react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { jsPDF } from "jspdf";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -18,6 +18,7 @@ import { useAuth } from "../../context/AuthContext";
 import { cn } from "../../lib/utils";
 import { showSuccess, showError, showConfirm } from "../../lib/swal";
 import { medicineSchema, prescriptionSchema } from "../../schemas/prescriptionSchema";
+import { createPrescription } from "../../api/prescriptions";
 
 const FREQ_OPTIONS = [
   "Once daily",
@@ -34,10 +35,12 @@ const todayFormatted = () => {
 const DoctorPrescriptionWriter = () => {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [generated, setGenerated] = useState(false);
 
   const doctorName = user?.displayName || "Doctor";
   const dateStr = todayFormatted();
+  const patientUid = searchParams.get("uid") || "demo_patient_uid";
 
   const {
     register,
@@ -80,8 +83,28 @@ const DoctorPrescriptionWriter = () => {
     remove(index);
   };
 
-  const handleGenerate = (data) => {
-    setGenerated(true);
+  const handleGenerate = async (data) => {
+    try {
+      const payload = {
+        patientUid: patientUid,
+        doctorId: user.uid,
+        doctorName: doctorName,
+        date: dateStr,
+        diagnosis: data.diagnosis,
+        medicines: data.medicines.map(m => ({
+          name: m.name,
+          dosage: m.dosage,
+          frequency: m.frequency,
+          duration: m.duration,
+        })),
+        notes: data.notes,
+      };
+      await createPrescription(payload);
+      setGenerated(true);
+      showSuccess("Prescription issued and sent to patient's dashboard successfully!", "Prescription Sent");
+    } catch (err) {
+      showError("Failed to issue prescription.", "Error");
+    }
   };
 
   const onInvalid = (errors) => {
@@ -181,9 +204,7 @@ const DoctorPrescriptionWriter = () => {
     doc.save(`DocLink_Rx_${safeName}_${safeDate}.pdf`);
   };
 
-  const handleIssueToPatient = () => {
-    showSuccess("Prescription sent to patient's dashboard!", "Prescription Sent");
-  };
+
 
   return (
     <div className="space-y-6">
@@ -412,8 +433,8 @@ const DoctorPrescriptionWriter = () => {
               type="submit"
               className="flex-1 bg-blue-600 hover:bg-blue-700 text-white border-none h-12 font-semibold shadow-lg shadow-blue-600/20"
             >
-              <Lucide.FileCheck className="w-5 h-5 mr-2" />
-              Generate Prescription
+              <Lucide.Send className="w-5 h-5 mr-2" />
+              Send to Patient
             </Button>
             <Button
               type="button"
@@ -448,32 +469,41 @@ const DoctorPrescriptionWriter = () => {
                     <PreviewCard form={formValues} medicines={medicinesValue} doctorName={doctorName} dateStr={dateStr} />
                     <span className="absolute top-4 right-4 flex items-center gap-1.5 bg-green-500/20 text-green-400 border border-green-500/30 text-xs font-semibold px-3 py-1.5 rounded-full">
                       <Lucide.Check className="w-3 h-3" />
-                      Generated
+                      Issued & Sent
                     </span>
                   </div>
-                  <Button
-                    type="button"
-                    onClick={handleDownloadPDF}
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white border-none h-11 font-semibold shadow-lg shadow-emerald-600/20"
-                  >
-                    <Lucide.Download className="w-4 h-4 mr-2" />
-                    Download PDF
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleIssueToPatient}
-                    className="w-full bg-white/5 border-white/10 text-white hover:bg-white/10 h-11"
-                  >
-                    <Lucide.Send className="w-4 h-4 mr-2" />
-                    Issue to Patient
-                  </Button>
+                  
+                  <div className="bg-green-500/10 border border-green-500/20 rounded-2xl p-4 flex items-start gap-3">
+                    <Lucide.CheckCircle2 className="w-5 h-5 text-green-400 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-text-primary text-sm font-semibold">Prescription Issued!</p>
+                      <p className="text-text-secondary text-xs mt-1">This prescription has been sent directly to the patient's dashboard.</p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <Button
+                      type="button"
+                      onClick={handleDownloadPDF}
+                      className="flex-1 bg-white border border-white/10 text-black hover:bg-white/10 h-11"
+                    >
+                      <Lucide.Download className="w-4 h-4 mr-2" />
+                      Download Copy
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={() => navigate("/doctor/dashboard")}
+                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white border-none h-11 font-semibold"
+                    >
+                      Dashboard
+                    </Button>
+                  </div>
                   <button
                     type="button"
                     onClick={() => setGenerated(false)}
                     className="w-full text-center text-gray-500 hover:text-cyan-400 text-sm underline underline-offset-4 transition-colors"
                   >
-                    Edit Prescription
+                    Edit / Revise
                   </button>
                 </motion.div>
               ) : (
@@ -490,73 +520,112 @@ const DoctorPrescriptionWriter = () => {
 };
 
 // Live preview card component
-const PreviewCard = ({ form, medicines, doctorName, dateStr }) => (
-  <div className="bg-background-secondary border border-border rounded-2xl p-6 space-y-4 font-mono text-sm">
-    {/* Header */}
-    <div className="flex items-center justify-between border-b border-border pb-4">
-      <div>
-        <p className="text-accent-primary font-bold text-base tracking-tight">DocLink Rx</p>
-        <p className="text-text-secondary text-xs">Telemedicine Prescription</p>
+const PreviewCard = ({ form, medicines, doctorName, dateStr }) => {
+  const doctorInitials = doctorName ? doctorName.replace("Dr. ", "").split(" ").map(n => n[0]).join("").toUpperCase() : "DR";
+  
+  return (
+    <div className="bg-background-secondary border border-border rounded-2xl overflow-hidden shadow-xl transition-all hover:shadow-2xl hover:border-accent-primary/20 relative p-6">
+      {/* Top styling band matching accent primary */}
+      <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-accent-primary to-accent-secondary" />
+      
+      {/* Pad Header */}
+      <div className="flex justify-between items-start gap-4 border-b border-border pb-4 mb-4">
+        <div>
+          <span className="text-[9px] font-bold text-accent-primary uppercase tracking-widest bg-accent-primary/10 px-2 py-0.5 rounded">
+            DocLink Telemedicine
+          </span>
+          <h3 className="text-text-primary font-bold text-lg mt-1 tracking-tight">
+            Dr. {doctorName}
+          </h3>
+          <p className="text-text-secondary text-[10px] uppercase tracking-wider mt-0.5">
+            DocLink Medical Provider
+          </p>
+        </div>
+        
+        <div className="text-right shrink-0">
+          <p className="text-text-secondary/60 text-[9px] uppercase tracking-wider font-semibold">Issue Date</p>
+          <p className="text-text-primary font-bold text-xs mt-0.5">{dateStr}</p>
+        </div>
       </div>
-      <p className="text-text-secondary text-xs">{dateStr}</p>
-    </div>
 
-    {/* Patient info */}
-    <div className="space-y-1">
-      <div className="flex gap-2">
-        <span className="text-text-secondary text-xs w-20">Patient</span>
-        <span className="text-text-primary font-semibold">{form.patientName || "—"}</span>
+      {/* Patient Metadata Box */}
+      <div className="bg-background-tertiary border border-border rounded-xl p-3 flex flex-wrap items-center gap-y-2 justify-between mb-4">
+        <div>
+          <p className="text-text-secondary/60 text-[9px] uppercase tracking-wider font-semibold">Patient Name</p>
+          <p className="text-text-primary font-bold text-xs mt-0.5">{form.patientName || "—"}</p>
+        </div>
+        <div>
+          <p className="text-text-secondary/60 text-[9px] uppercase tracking-wider font-semibold">Diagnosis</p>
+          <span className="inline-block bg-amber-500/10 text-amber-600 border border-amber-500/20 text-[10px] font-semibold px-2 py-0.5 rounded mt-0.5">
+            {form.diagnosis || "—"}
+          </span>
+        </div>
       </div>
-      <div className="flex gap-2">
-        <span className="text-text-secondary text-xs w-20">Age / Gender</span>
-        <span className="text-text-primary">
-          {form.age || "—"} / {form.gender || "—"}
+
+      {/* Prescription Pad Body */}
+      <div className="flex gap-4 mb-4">
+        {/* Rx Symbol */}
+        <span className="font-serif italic font-extrabold text-accent-primary text-3xl tracking-tighter leading-none select-none shrink-0 mt-0.5">
+          Rx
         </span>
-      </div>
-      <div className="flex gap-2">
-        <span className="text-gray-500 text-xs w-20">Diagnosis</span>
-        <span className="text-amber-400 font-medium">{form.diagnosis || "—"}</span>
-      </div>
-    </div>
 
-    {/* Medicines */}
-    <div className="border-t border-border pt-3">
-      <p className="text-text-secondary text-xs uppercase tracking-wider mb-2">Medicines</p>
-      {medicines.filter((m) => m && m.name).length === 0 ? (
-        <p className="text-text-secondary/50 italic text-xs">No medicines added yet</p>
-      ) : (
-        <div className="space-y-2">
-          {medicines.map((med, idx) =>
-            med && med.name ? (
-              <div key={idx} className="text-xs">
-                <span className="text-text-primary font-semibold">
-                  {idx + 1}. {med.name}
-                </span>{" "}
-                <span className="text-text-secondary">
-                  {med.dosage && `(${med.dosage})`} — {med.frequency}
-                  {med.duration && `, ${med.duration}`}
-                </span>
-              </div>
-            ) : null
+        {/* Medicines */}
+        <div className="flex-1 space-y-3">
+          <h4 className="text-text-primary font-bold text-[10px] uppercase tracking-widest border-b border-border pb-1.5">
+            Prescribed Medicines
+          </h4>
+          
+          {medicines.filter((m) => m && m.name).length === 0 ? (
+            <p className="text-text-secondary/50 text-[11px] italic">No medicines added yet</p>
+          ) : (
+            <div className="space-y-3">
+              {medicines.map((med, idx) =>
+                med && med.name ? (
+                  <div key={idx} className="flex items-start gap-2 text-xs">
+                    <div className="w-4 h-4 rounded-full bg-background-tertiary border border-border flex items-center justify-center text-text-secondary font-mono text-[10px] font-semibold shrink-0 mt-0.5">
+                      {idx + 1}
+                    </div>
+                    <div>
+                      <p className="text-text-primary font-bold text-xs leading-snug">{med.name}</p>
+                      <p className="text-text-secondary text-[10px] mt-0.5">
+                        {med.dosage || "1 Tab"} — {med.frequency}
+                        {med.duration && ` (Duration: ${med.duration})`}
+                      </p>
+                    </div>
+                  </div>
+                ) : null
+              )}
+            </div>
           )}
         </div>
-      )}
-    </div>
-
-    {/* Notes */}
-    {form.notes && (
-      <div className="border-t border-border pt-3">
-        <p className="text-text-secondary text-xs uppercase tracking-wider mb-1">Notes</p>
-        <p className="text-text-secondary text-xs italic leading-relaxed line-clamp-4">{form.notes}</p>
       </div>
-    )}
 
-    {/* Signature */}
-    <div className="border-t border-border pt-3">
-      <p className="text-text-secondary text-xs">Dr. {doctorName}</p>
-      <p className="text-text-secondary/60 text-xs">DocLink Medical Provider</p>
+      {/* Notes Section */}
+      {form.notes && (
+        <div className="bg-background-tertiary border-l-4 border-accent-primary rounded-r-xl p-3 mb-4">
+          <p className="text-text-secondary/60 text-[9px] uppercase tracking-wider font-bold mb-0.5">
+            Clinical Notes
+          </p>
+          <p className="text-text-primary text-xs italic leading-relaxed">
+            "{form.notes}"
+          </p>
+        </div>
+      )}
+
+      {/* Footer */}
+      <div className="flex items-center justify-between border-t border-border pt-3 mt-4">
+        <span className="text-text-secondary/50 text-[9px] tracking-tight">Verified Digital Preview</span>
+
+        {/* Cursive Signature */}
+        <div className="flex flex-col items-end select-none shrink-0">
+          <div className="font-serif italic font-extrabold text-accent-primary text-sm leading-tight tracking-wider transform -rotate-1 bg-accent-primary/5 px-2 py-0.5 border border-accent-primary/10 rounded">
+            Dr. {doctorInitials}
+          </div>
+          <p className="text-text-secondary/50 text-[8px] uppercase mt-0.5">Authorized Signature</p>
+        </div>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 export default DoctorPrescriptionWriter;

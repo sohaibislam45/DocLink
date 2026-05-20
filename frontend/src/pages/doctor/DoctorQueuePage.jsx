@@ -7,14 +7,12 @@ import { cn } from "../../lib/utils";
 import useConsultationTimer from "../../hooks/useConsultationTimer";
 import useAuth from "../../hooks/useAuth";
 import { useSocketQueue } from "../../hooks/useSocketQueue";
-import { getSocket } from "../../lib/socket";
 import { createRoom } from "../../api/rooms";
 import { showSuccess, showError, showInfo, showConfirm } from "../../lib/swal";
 
 const DoctorQueuePage = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const socket = getSocket();
+  const { user, socket } = useAuth();
   
   // Initialize real-time queue
   // In this app, doctorId usually corresponds to the user.uid
@@ -263,7 +261,7 @@ const DoctorQueuePage = () => {
                       variant="outline"
                       onClick={() =>
                         navigate(
-                          `/doctor/prescriptions/new?patient=${encodeURIComponent(currentPatient.patientName)}&reason=${encodeURIComponent(currentPatient.reason)}`
+                          `/doctor/prescriptions/new?patient=${encodeURIComponent(currentPatient.patientName)}&reason=${encodeURIComponent(currentPatient.reason)}&uid=${encodeURIComponent(currentPatient.patientUid)}`
                         )
                       }
                       className="w-full bg-background-secondary border-border text-text-primary hover:bg-background-tertiary h-11"

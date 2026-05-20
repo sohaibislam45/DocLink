@@ -47,7 +47,7 @@ const PatientOverview = () => {
     { icon: Lucide.Activity, label: "Total Consultations", value: data?.stats?.totalConsultations || 0, color: "bg-accent-primary/10 text-accent-primary" },
     { icon: Lucide.FileText, label: "Prescriptions", value: data?.stats?.totalPrescriptions || 0, color: "bg-purple-500/10 text-purple-600 dark:text-purple-400" },
     { icon: Lucide.Users, label: "Doctors Visited", value: data?.stats?.totalDoctors || 0, color: "bg-blue-500/10 text-blue-600 dark:text-blue-400" },
-    { icon: Lucide.Star, label: "Avg. Rating Given", value: data?.stats?.avgRating || "0", color: "bg-amber-500/10 text-amber-600 dark:text-amber-400" },
+    { icon: Lucide.CreditCard, label: "Total Spent", value: `৳${data?.stats?.totalSpent || 0}`, color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" },
   ];
 
   const getActivityConfig = (type) => {

@@ -1,5 +1,6 @@
 import express from "express";
 import mongoose from "mongoose";
+import admin from "firebase-admin";
 import { verifyAdmin } from "../middleware/verifyAdmin.js";
 import { Doctor } from "./doctors.js";
 import { Patient } from "./patients.js";
@@ -90,11 +91,27 @@ router.get("/doctors", verifyAdmin, async (req, res) => {
 // POST /api/admin/doctors
 router.post("/doctors", verifyAdmin, async (req, res) => {
   try {
+    const { email, password, name, ...rest } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password are required for new doctors" });
+    }
+
+    // 1. Create user in Firebase Auth
+    const firebaseUser = await admin.auth().createUser({
+      email,
+      password,
+      displayName: name,
+    });
+
+    // 2. Create doctor in MongoDB
     const doctor = await Doctor.create({
-      ...req.body,
-      id: `doc-${Date.now()}`,
+      ...rest,
+      name,
+      email,
+      id: firebaseUser.uid,
       verified: true,
     });
+
     res.status(201).json(doctor);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -104,12 +121,29 @@ router.post("/doctors", verifyAdmin, async (req, res) => {
 // PATCH /api/admin/doctors/:id
 router.patch("/doctors/:id", verifyAdmin, async (req, res) => {
   try {
+    const { email, password, name, ...rest } = req.body;
+
+    // 1. Update doctor in MongoDB
+    const updateFields = { ...rest, name };
+    if (email) updateFields.email = email;
+
     const doctor = await Doctor.findOneAndUpdate(
       { id: req.params.id },
-      req.body,
+      updateFields,
       { new: true, runValidators: true }
     );
     if (!doctor) return res.status(404).json({ error: "Doctor not found" });
+
+    // 2. Update user in Firebase Auth
+    const firebaseUpdate = {};
+    if (name) firebaseUpdate.displayName = name;
+    if (email) firebaseUpdate.email = email;
+    if (password) firebaseUpdate.password = password;
+
+    if (Object.keys(firebaseUpdate).length > 0) {
+      await admin.auth().updateUser(req.params.id, firebaseUpdate);
+    }
+
     res.json(doctor);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -122,6 +156,11 @@ router.delete("/doctors/:id", verifyAdmin, async (req, res) => {
     const doctor = await Doctor.findOneAndDelete({ id: req.params.id });
     if (!doctor) return res.status(404).json({ error: "Doctor not found" });
     await QueueEntry.deleteMany({ doctorId: req.params.id });
+    try {
+      await admin.auth().deleteUser(req.params.id);
+    } catch (firebaseErr) {
+      console.warn("Failed to delete Firebase user for doctor:", firebaseErr.message);
+    }
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

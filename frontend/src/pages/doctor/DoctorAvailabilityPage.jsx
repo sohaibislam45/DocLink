@@ -20,21 +20,24 @@ import useDoctorOnlineStatus from "../../hooks/useDoctorOnlineStatus";
 import { fetchSpecialties } from "../../api/common";
 import { doctorProfileSchema } from "../../schemas/profileSchema";
 import { showSuccess, showError } from "../../lib/swal";
+import { fetchDoctorDashboardData, updateDoctorProfile, updateDoctorAvailability } from "../../api/doctors";
+import { useQueryClient } from "@tanstack/react-query";
 
-const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const DAYS = ["Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 const DEFAULT_HOURS = {
+  Saturday: { enabled: false, from: "09:00", to: "17:00" },
+  Sunday: { enabled: false, from: "09:00", to: "17:00" },
   Monday: { enabled: true, from: "09:00", to: "17:00" },
   Tuesday: { enabled: true, from: "09:00", to: "17:00" },
   Wednesday: { enabled: true, from: "09:00", to: "17:00" },
   Thursday: { enabled: true, from: "09:00", to: "17:00" },
   Friday: { enabled: true, from: "09:00", to: "17:00" },
-  Saturday: { enabled: false, from: "09:00", to: "17:00" },
-  Sunday: { enabled: false, from: "09:00", to: "17:00" },
 };
 
 const DoctorAvailabilityPage = () => {
-  const { user } = useAuth();
+  const { user, refreshProfile, profile } = useAuth();
   const { isOnline, toggleOnline } = useDoctorOnlineStatus();
+  const queryClient = useQueryClient();
   const fileInputRef = useRef(null);
 
   const [specialties, setSpecialties] = useState([]);
@@ -53,14 +56,14 @@ const DoctorAvailabilityPage = () => {
   const [isSavingAvail, setIsSavingAvail] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [photoPreview, setPhotoPreview] = useState(null);
-  const [tags, setTags] = useState(["English"]);
-  const [tagInput, setTagInput] = useState("");
+  const [photoFile, setPhotoFile] = useState(null);
 
   const {
     register,
     handleSubmit,
     control,
     watch,
+    reset,
     formState: { errors, isValid },
   } = useForm({
     resolver: zodResolver(doctorProfileSchema),
@@ -78,6 +81,33 @@ const DoctorAvailabilityPage = () => {
 
   const bioValue = watch("bio") || "";
 
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    const loadProfileData = async () => {
+      try {
+        const { doctor: doc } = await fetchDoctorDashboardData();
+        if (doc) {
+          if (doc.workingHours) {
+            setHours(doc.workingHours);
+          }
+          reset({
+            fullName: doc.name || user?.displayName || "",
+            phone: doc.phone || "",
+            specialty: doc.specialty || "General Medicine",
+            experience: String(doc.experience ?? 1),
+            fee: String(doc.fee ?? 500),
+            bio: doc.bio || "",
+            education: doc.education || "",
+          });
+        }
+      } catch (error) {
+        console.error("Failed to load doctor profile:", error);
+      }
+    };
+    loadProfileData();
+  }, [reset, user?.uid, user?.displayName]);
+
   const toggleDay = (day) => {
     setHours((prev) => ({
       ...prev,
@@ -94,34 +124,56 @@ const DoctorAvailabilityPage = () => {
 
   const handlePhotoChange = (e) => {
     const file = e.target.files[0];
-    if (file) setPhotoPreview(URL.createObjectURL(file));
-  };
-
-  const addTag = (e) => {
-    if (e.key === "Enter" && tagInput.trim()) {
-      e.preventDefault();
-      const newTag = tagInput.trim();
-      if (!tags.includes(newTag)) setTags((prev) => [...prev, newTag]);
-      setTagInput("");
+    if (file) {
+      setPhotoFile(file);
+      setPhotoPreview(URL.createObjectURL(file));
     }
   };
 
-  const removeTag = (tag) => setTags((prev) => prev.filter((t) => t !== tag));
-
-  const saveAvailability = () => {
+  const saveAvailability = async () => {
     setIsSavingAvail(true);
-    setTimeout(() => {
-      setIsSavingAvail(false);
+    try {
+      await updateDoctorAvailability(hours);
       showSuccess("Your working hours have been saved.", "Availability Updated!");
-    }, 1500);
+    } catch (error) {
+      showError("Failed to update availability.", "Error");
+    } finally {
+      setIsSavingAvail(false);
+    }
   };
 
-  const saveProfile = (data) => {
+  const saveProfile = async (data) => {
     setIsSavingProfile(true);
-    setTimeout(() => {
-      setIsSavingProfile(false);
+    try {
+      let avatarUrl = profile?.avatar;
+      if (photoFile) {
+        const { ref, uploadBytes, getDownloadURL } = await import("firebase/storage");
+        const { storage } = await import("../../lib/firebase");
+        const storageRef = ref(storage, `avatars/${user.uid}_${Date.now()}`);
+        await uploadBytes(storageRef, photoFile);
+        avatarUrl = await getDownloadURL(storageRef);
+      }
+
+      const payload = {
+        name: data.fullName,
+        phone: data.phone,
+        specialty: data.specialty,
+        experience: Number(data.experience),
+        fee: Number(data.fee),
+        bio: data.bio,
+        education: data.education,
+        avatar: avatarUrl,
+      };
+      await updateDoctorProfile(payload);
+      if (refreshProfile) refreshProfile();
+      queryClient.invalidateQueries({ queryKey: ["doctor"] });
+      queryClient.invalidateQueries({ queryKey: ["doctors"] });
       showSuccess("Your profile has been saved successfully.", "Profile Updated!");
-    }, 1500);
+    } catch (error) {
+      showError("Failed to update profile.", "Error");
+    } finally {
+      setIsSavingProfile(false);
+    }
   };
 
   const handleChangePassword = async () => {
@@ -258,8 +310,8 @@ const DoctorAvailabilityPage = () => {
             <div className="flex flex-col items-center gap-3">
               <div className="relative group cursor-pointer" onClick={() => fileInputRef.current.click()}>
                 <Avatar className="w-24 h-24 border-2 border-cyan-500/30">
-                  {photoPreview || user?.photoURL ? (
-                    <AvatarImage src={photoPreview || user?.photoURL} />
+                  {photoPreview || profile?.avatar || user?.photoURL ? (
+                    <AvatarImage src={photoPreview || profile?.avatar || user?.photoURL} />
                   ) : null}
                   <AvatarFallback className="bg-gradient-to-br from-accent-primary to-accent-secondary text-white text-2xl font-bold">
                     {initials}
@@ -333,7 +385,7 @@ const DoctorAvailabilityPage = () => {
                     {errors.experience && <p className="text-red-400 text-xs">{errors.experience.message}</p>}
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs text-text-secondary font-medium">Consultation Fee ($)</label>
+                    <label className="text-xs text-text-secondary font-medium">Consultation Fee (৳)</label>
                     <Input
                       type="number"
                       {...register("fee")}
@@ -369,24 +421,6 @@ const DoctorAvailabilityPage = () => {
                     )}
                   />
                   {errors.education && <p className="text-red-400 text-xs">{errors.education.message}</p>}
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs text-text-secondary font-medium">Languages Spoken</label>
-                  <div className="flex flex-wrap gap-2 min-h-[40px] bg-background-tertiary border border-border rounded-xl p-2">
-                    {tags.map((tag) => (
-                      <span key={tag} className="flex items-center gap-1 bg-accent-primary/15 text-accent-primary text-xs px-2.5 py-1 rounded-full border border-accent-primary/20">
-                        {tag}
-                        <button type="button" onClick={() => removeTag(tag)} className="hover:text-red-400 ml-0.5">×</button>
-                      </span>
-                    ))}
-                    <input
-                      value={tagInput}
-                      onChange={(e) => setTagInput(e.target.value)}
-                      onKeyDown={addTag}
-                      placeholder="Press Enter to add..."
-                      className="flex-1 min-w-[80px] bg-transparent text-text-primary text-xs outline-none placeholder:text-text-secondary/50 px-1"
-                    />
-                  </div>
                 </div>
               </div>
 

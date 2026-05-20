@@ -21,7 +21,7 @@ const Navbar = () => {
   const navigate = useNavigate();
   const [isScrolled, setIsScrolled] = React.useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
-  const { user, role, logout } = useAuth();
+  const { user, role, profile, logout } = useAuth();
   const { isDarkMode, toggleTheme } = useTheme();
 
   React.useEffect(() => {
@@ -38,6 +38,14 @@ const Navbar = () => {
     { name: 'How It Works', href: '/how-it-works' },
     { name: 'Pricing', href: '/pricing' },
   ];
+
+  const displayName = role === 'doctor' 
+    ? (profile?.name || user?.displayName) 
+    : (profile?.name || user?.displayName || user?.email?.split('@')[0]);
+  const photoURL = role === 'doctor' 
+    ? (profile?.avatar || user?.photoURL) 
+    : (profile?.photoURL || user?.photoURL);
+  const initials = (displayName || '?')[0].toUpperCase();
 
   return (
     <motion.nav
@@ -87,12 +95,12 @@ const Navbar = () => {
               <DropdownMenuTrigger className="cursor-pointer outline-none">
                 <div className="flex items-center gap-3 bg-background-tertiary/50 border border-border/50 rounded-full pl-3 pr-1 py-1 hover:border-accent-primary/50 transition-colors">
                   <span className="text-sm font-medium text-text-secondary truncate max-w-[100px]">
-                    {user.displayName || user.email.split('@')[0]}
+                    {displayName}
                   </span>
                   <Avatar className="w-8 h-8">
-                    <AvatarImage src={user.photoURL} />
+                    <AvatarImage src={photoURL} />
                     <AvatarFallback className="bg-accent-primary text-white text-xs">
-                      {(user.displayName || user.email)[0].toUpperCase()}
+                      {initials}
                     </AvatarFallback>
                   </Avatar>
                 </div>
@@ -174,14 +182,14 @@ const Navbar = () => {
               <>
                 <div className="flex items-center gap-3 px-4 py-2 bg-background-tertiary/50 rounded-xl mb-2">
                   <Avatar className="w-10 h-10">
-                    <AvatarImage src={user.photoURL} />
+                    <AvatarImage src={photoURL} />
                     <AvatarFallback className="bg-accent-primary text-white">
-                      {(user.displayName || user.email)[0].toUpperCase()}
+                      {initials}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex flex-col">
                     <span className="text-sm font-bold text-text-primary">
-                      {user.displayName || user.email.split('@')[0]}
+                      {displayName}
                     </span>
                     <span className="text-xs text-text-secondary">{user.email}</span>
                   </div>

@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { getSocket } from "../lib/socket.js";
 import { auth } from "../lib/firebase.js";
 import { showSuccess } from "../lib/swal.js";
 import {
@@ -20,9 +19,8 @@ export const useSocketQueue = (doctor) => {
   const [error, setError] = useState(null);
   
   const wasDisconnected = useRef(false);
-  const socket = getSocket();
   const doctorId = doctor?.id || doctor?._id; // handle both id formats
-  const { user } = useAuth(); // reactive Firebase user (null → {uid} on load)
+  const { user, socket } = useAuth(); // reactive Firebase user and socket (null → resolved on load)
 
   // Always read the freshest uid at call-time — never stale from a closure
   const syncMyEntry = useCallback((queueData) => {

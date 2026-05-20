@@ -23,7 +23,9 @@ const Consultation = mongoose.model("Consultation", consultationSchema);
 // GET /api/consultations/my - Requires Auth
 router.get("/my", verifyToken, async (req, res) => {
   try {
-    const consultations = await Consultation.find({ patientUid: req.user.uid }).sort({ createdAt: -1 });
+    const consultations = await Consultation.find({
+      $or: [{ patientUid: req.user.uid }, { doctorId: req.user.uid }]
+    }).sort({ createdAt: -1 });
     res.json(consultations);
   } catch (err) {
     res.status(500).json({ error: err.message });

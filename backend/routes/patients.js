@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import { verifyToken } from "../middleware/verifyToken.js";
 import { Consultation } from "./consultations.js";
 import { Prescription } from "./prescriptions.js";
+import { Payment } from "./payments.js";
 
 const router = express.Router();
 
@@ -75,13 +76,21 @@ router.get("/stats", verifyToken, async (req, res) => {
       totalConsultations,
       totalPrescriptions,
       consultations,
-      prescriptions
+      prescriptions,
+      patient,
+      completedPayments
     ] = await Promise.all([
       Consultation.countDocuments({ patientUid }),
       Prescription.countDocuments({ patientUid }),
       Consultation.find({ patientUid }).sort({ createdAt: -1 }).limit(10),
       Prescription.find({ patientUid }).sort({ createdAt: -1 }).limit(10),
+      Patient.findOne({ uid: patientUid }),
+      Payment.find({ patientUid, status: "completed" }),
     ]);
+
+    // Calculate total spent (converting cents/poisha to BDT)
+    const totalSpentCents = completedPayments.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+    const totalSpent = (totalSpentCents / 100).toFixed(0); // Show flat BDT amount
 
     // Aggregate unique doctors
     const uniqueDoctorIds = new Set(consultations.map(c => c.doctorId));
@@ -108,7 +117,9 @@ router.get("/stats", verifyToken, async (req, res) => {
         totalConsultations,
         totalPrescriptions,
         totalDoctors,
-        avgRating: "4.8", // Placeholder for now as rating system isn't implemented
+        totalSpent: Number(totalSpent) || 0,
+        bloodType: patient?.bloodType || "Not Set",
+        allergies: patient?.allergies || "None",
       },
       activities
     });

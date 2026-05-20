@@ -2,6 +2,7 @@ import React from 'react';
 import DoctorBio from './about/DoctorBio';
 import DoctorEducation from './about/DoctorEducation';
 import DoctorExperience from './about/DoctorExperience';
+import DoctorWorkingHours from './about/DoctorWorkingHours';
 
 const DoctorAboutSection = () => {
   return (
@@ -9,6 +10,7 @@ const DoctorAboutSection = () => {
       <DoctorBio />
       <DoctorEducation />
       <DoctorExperience />
+      <DoctorWorkingHours />
     </div>
   );
 };

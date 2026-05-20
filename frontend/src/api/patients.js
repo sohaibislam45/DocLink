@@ -13,7 +13,7 @@ export const updatePatientProfile = async (data) => {
 };
 
 export const fetchPatients = async () => {
-  return axiosClient.get("/consultations/my"); // Temporary mapping to history
+  return axiosClient.get("/doctors/my/patients");
 };
 
 export const fetchPatientStats = async () => {

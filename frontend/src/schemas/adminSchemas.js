@@ -11,6 +11,8 @@ export const adminDoctorSchema = z.object({
   experienceDetails: z.string().min(1, "Professional Experience is required"),
   rating:     z.coerce.number().min(0).max(5).default(0),
   isOnline:   z.boolean().optional(),
+  email:      z.string().email("Invalid email address"),
+  password:   z.string().optional().or(z.literal("")),
 });
 
 export const adminPatientSchema = z.object({

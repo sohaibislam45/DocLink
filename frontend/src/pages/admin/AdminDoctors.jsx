@@ -241,7 +241,7 @@ export default function AdminDoctors() {
 }
 
 function DoctorModal({ open, onOpenChange, doctor, onSubmit, isPending }) {
-  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm({
+  const { register, handleSubmit, reset, setValue, setError, watch, formState: { errors } } = useForm({
     resolver: zodResolver(adminDoctorSchema),
   });
 
@@ -265,6 +265,8 @@ function DoctorModal({ open, onOpenChange, doctor, onSubmit, isPending }) {
           experienceDetails: doctor.experienceDetails || "",
           rating: doctor.rating || 0,
           isOnline: doctor.isOnline || false,
+          email: doctor.email || "",
+          password: "",
         });
         setAvatarUrl(doctor.avatar || "");
       } else {
@@ -272,6 +274,8 @@ function DoctorModal({ open, onOpenChange, doctor, onSubmit, isPending }) {
           name: "", specialty: "", experience: 0, fee: 0, 
           bio: "", gender: "male", education: "", experienceDetails: "", rating: 0,
           isOnline: false,
+          email: "",
+          password: "",
         });
         setAvatarUrl("");
       }
@@ -303,11 +307,19 @@ function DoctorModal({ open, onOpenChange, doctor, onSubmit, isPending }) {
   };
 
   const handleFormSubmit = (data) => {
+    if (!doctor && (!data.password || data.password.trim().length < 6)) {
+      setError("password", { type: "manual", message: "Password must be at least 6 characters for a new doctor" });
+      return;
+    }
     const formattedData = {
       ...data,
       avatar: avatarUrl || undefined,
       initials: data.name ? data.name.split(" ").map(n => n[0]).join("").toUpperCase() : "DOC"
     };
+    // If password is empty (e.g. during edit), remove it so we don't send it to the backend unnecessarily
+    if (!formattedData.password) {
+      delete formattedData.password;
+    }
     onSubmit(formattedData);
   };
 
@@ -385,6 +397,21 @@ function DoctorModal({ open, onOpenChange, doctor, onSubmit, isPending }) {
               <label className="text-xs font-semibold text-[#475569] dark:text-[#8B9FC4] uppercase">Specialty</label>
               <input {...register("specialty")} className="w-full mt-1 px-3 py-2 bg-white dark:bg-[#111D35] border border-red-500/10 rounded-lg text-sm" />
               {errors.specialty && <p className="text-red-500 text-[10px] mt-1">{errors.specialty.message}</p>}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-semibold text-[#475569] dark:text-[#8B9FC4] uppercase">Email Address</label>
+              <input type="email" {...register("email")} placeholder="doctor@doclink.com" className="w-full mt-1 px-3 py-2 bg-white dark:bg-[#111D35] border border-red-500/10 rounded-lg text-sm" />
+              {errors.email && <p className="text-red-500 text-[10px] mt-1">{errors.email.message}</p>}
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-[#475569] dark:text-[#8B9FC4] uppercase">
+                {doctor ? "New Password (Optional)" : "One-time Temporary Password"}
+              </label>
+              <input type="password" {...register("password")} placeholder={doctor ? "Leave blank to keep current" : "••••••••"} className="w-full mt-1 px-3 py-2 bg-white dark:bg-[#111D35] border border-red-500/10 rounded-lg text-sm" />
+              {errors.password && <p className="text-red-500 text-[10px] mt-1">{errors.password.message}</p>}
             </div>
           </div>
 

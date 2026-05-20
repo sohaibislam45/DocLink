@@ -19,3 +19,19 @@ export const fetchDoctorById = async (id) => {
 export const updateDoctorStatus = async (id, isOnline) => {
   return axiosClient.patch(`/doctors/${id}/status`, { isOnline });
 };
+
+export const syncDoctorProfile = async () => {
+  return axiosClient.post("/doctors/sync");
+};
+
+export const fetchDoctorDashboardData = async () => {
+  return axiosClient.get("/doctors/my/dashboard");
+};
+
+export const updateDoctorProfile = async (data) => {
+  return axiosClient.patch("/doctors/my/profile", data);
+};
+
+export const updateDoctorAvailability = async (workingHours) => {
+  return axiosClient.patch("/doctors/my/availability", { workingHours });
+};
