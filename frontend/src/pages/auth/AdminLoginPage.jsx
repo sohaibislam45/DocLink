@@ -22,7 +22,7 @@ export default function AdminLoginPage() {
   const { loginWithRole } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
 
-  const { register, handleSubmit, setValue, formState: { errors } } = useForm({
+  const { register, handleSubmit, setValue, formState: { errors, isDirty } } = useForm({
     resolver: zodResolver(adminLoginSchema),
   });
 
@@ -151,7 +151,7 @@ export default function AdminLoginPage() {
           <motion.button
             whileTap={{ scale: 0.97 }}
             type="submit"
-            disabled={isPending}
+            disabled={isPending || !isDirty}
             className="w-full py-3 rounded-lg font-semibold text-white
                        bg-red-500 hover:bg-red-600
                        flex items-center justify-center gap-2

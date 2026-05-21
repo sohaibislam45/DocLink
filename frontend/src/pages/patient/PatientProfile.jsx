@@ -2,12 +2,12 @@ import React, { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import * as Lucide from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
-import { fetchPatientProfile, updatePatientProfile } from "../../api/patients";
+import { fetchPatientProfile, updatePatientProfile, deletePatientAccount } from "../../api/patients";
 import { Input } from "../../components/ui/Input";
 import { Button } from "../../components/ui/Button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/Select";
 import { Skeleton } from "../../components/ui/Skeleton";
-import { showSuccess, showError } from "../../lib/swal";
+import { showSuccess, showError, showConfirm } from "../../lib/swal";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -47,6 +47,7 @@ const PatientProfile = () => {
   const [photoPreview, setPhotoPreview] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
 
   const { data: profile, isLoading: loading, error: queryError } = useQuery({
     queryKey: ["patientProfile", user?.uid],
@@ -59,7 +60,7 @@ const PatientProfile = () => {
     handleSubmit,
     control,
     reset,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm({
     resolver: zodResolver(profileSchema),
     defaultValues: {
@@ -147,10 +148,33 @@ const PatientProfile = () => {
       }
 
       setSelectedFile(null);
+      reset(data);
     } catch (err) {
       showError(err.message || "Failed to update profile", "Error");
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    const confirmed = await showConfirm({
+      title: "Delete Account?",
+      text: "This will permanently delete your account and all your medical history. This action cannot be undone.",
+      confirmText: "Yes, Delete My Account",
+      cancelText: "Cancel",
+      icon: "error",
+    });
+    if (!confirmed) return;
+
+    setIsDeletingAccount(true);
+    try {
+      await deletePatientAccount();
+      const { signOut } = await import("firebase/auth");
+      await signOut(auth);
+      window.location.href = "/";
+    } catch (err) {
+      showError(err.message || "Failed to delete account.");
+      setIsDeletingAccount(false);
     }
   };
 
@@ -317,7 +341,7 @@ const PatientProfile = () => {
 
             <Button
               type="submit"
-              disabled={updateMutation.isLoading || isUploading}
+              disabled={updateMutation.isLoading || isUploading || (!isDirty && !selectedFile)}
               className="mt-10 w-full bg-accent-primary hover:brightness-110 text-white h-12 font-bold shadow-lg shadow-accent-primary/20 active:scale-[0.98] transition-all"
             >
               {updateMutation.isLoading || isUploading ? (
@@ -398,9 +422,17 @@ const PatientProfile = () => {
               <Lucide.AlertTriangle className="w-5 h-5" />
               Danger Zone
             </h3>
-            <Button variant="ghost" className="w-full text-red-500 hover:bg-red-500/10 justify-start h-11 border border-transparent hover:border-red-500/20 mb-2">
-              <Lucide.Ban className="w-4 h-4 mr-2" />
-              Delete Account
+            <Button
+              variant="ghost"
+              onClick={handleDeleteAccount}
+              disabled={isDeletingAccount}
+              className="w-full text-red-500 hover:bg-red-500/10 justify-start h-11 border border-transparent hover:border-red-500/20 mb-2 disabled:opacity-50"
+            >
+              {isDeletingAccount ? (
+                <><Lucide.Loader2 className="w-4 h-4 mr-2 animate-spin" />Deleting Account...</>
+              ) : (
+                <><Lucide.Ban className="w-4 h-4 mr-2" />Delete Account</>
+              )}
             </Button>
             <p className="text-[10px] text-text-secondary/60 px-1">
               Warning: Deleting your account will permanently remove all medical history.

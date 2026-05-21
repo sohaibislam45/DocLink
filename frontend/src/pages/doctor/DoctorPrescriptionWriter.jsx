@@ -48,7 +48,7 @@ const DoctorPrescriptionWriter = () => {
     control,
     watch,
     reset,
-    formState: { errors, isValid },
+    formState: { errors, isValid, isDirty },
   } = useForm({
     resolver: zodResolver(prescriptionSchema),
     defaultValues: {
@@ -101,6 +101,7 @@ const DoctorPrescriptionWriter = () => {
       };
       await createPrescription(payload);
       setGenerated(true);
+      reset(data);
       showSuccess("Prescription issued and sent to patient's dashboard successfully!", "Prescription Sent");
     } catch (err) {
       showError("Failed to issue prescription.", "Error");
@@ -431,7 +432,8 @@ const DoctorPrescriptionWriter = () => {
           <div className="flex gap-3">
             <Button
               type="submit"
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white border-none h-12 font-semibold shadow-lg shadow-blue-600/20"
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white border-none h-12 font-semibold shadow-lg shadow-blue-600/20 disabled:opacity-50"
+              disabled={!isDirty}
             >
               <Lucide.Send className="w-5 h-5 mr-2" />
               Send to Patient

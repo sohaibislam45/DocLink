@@ -1,5 +1,6 @@
 import express from "express";
 import mongoose from "mongoose";
+import admin from "firebase-admin";
 import { verifyToken } from "../middleware/verifyToken.js";
 import { Consultation } from "./consultations.js";
 import { Prescription } from "./prescriptions.js";
@@ -63,6 +64,21 @@ router.patch("/me", verifyToken, async (req, res) => {
     if (!patient) return res.status(404).json({ error: "Patient profile not found" });
     res.json(patient);
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/patients/me - Requires Auth (Self-delete account)
+router.delete("/me", verifyToken, async (req, res) => {
+  try {
+    const uid = req.user.uid;
+    // Delete MongoDB patient record
+    await Patient.findOneAndDelete({ uid });
+    // Delete Firebase Auth account
+    await admin.auth().deleteUser(uid);
+    res.json({ success: true, message: "Account deleted successfully." });
+  } catch (err) {
+    console.error("Account deletion error:", err);
     res.status(500).json({ error: err.message });
   }
 });

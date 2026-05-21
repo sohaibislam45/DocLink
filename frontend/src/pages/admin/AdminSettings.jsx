@@ -15,14 +15,15 @@ export default function AdminSettings() {
     queryFn: fetchSettings,
   });
 
-  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm({
+  const { register, handleSubmit, setValue, watch, reset, formState: { errors, isDirty } } = useForm({
     resolver: zodResolver(settingsSchema),
   });
 
   const { mutate: handleUpdate, isPending } = useMutation({
     mutationFn: updateSettings,
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       swalSuccess("Settings Saved", "Platform configuration has been updated.");
+      reset(variables);
     },
     onError: (err) => swalError("Failed", err.response?.data?.error || err.message),
   });
@@ -152,7 +153,7 @@ export default function AdminSettings() {
           <div className="flex justify-end sticky bottom-8">
             <button
               type="submit"
-              disabled={isPending}
+              disabled={isPending || !isDirty}
               className="flex items-center gap-2 px-8 py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-xl shadow-lg shadow-red-500/20 transition-all active:scale-95 disabled:opacity-50"
             >
               {isPending ? (

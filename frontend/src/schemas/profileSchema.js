@@ -17,4 +17,5 @@ export const doctorProfileSchema = z.object({
   fee: z.coerce.number().min(0, "Fee cannot be negative"),
   bio: z.string().max(500, "Bio must be less than 500 characters").optional().or(z.literal("")),
   education: z.string().optional().or(z.literal("")),
+  experienceDetails: z.string().optional().or(z.literal("")),
 });

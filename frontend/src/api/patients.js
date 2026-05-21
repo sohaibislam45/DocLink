@@ -19,3 +19,7 @@ export const fetchPatients = async () => {
 export const fetchPatientStats = async () => {
   return axiosClient.get("/patients/stats");
 };
+
+export const deletePatientAccount = async () => {
+  return axiosClient.delete("/patients/me");
+};

@@ -53,6 +53,7 @@ const DoctorAvailabilityPage = () => {
   }, []);
 
   const [hours, setHours] = useState(DEFAULT_HOURS);
+  const [originalHours, setOriginalHours] = useState(DEFAULT_HOURS);
   const [isSavingAvail, setIsSavingAvail] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [photoPreview, setPhotoPreview] = useState(null);
@@ -64,7 +65,7 @@ const DoctorAvailabilityPage = () => {
     control,
     watch,
     reset,
-    formState: { errors, isValid },
+    formState: { errors, isValid, isDirty },
   } = useForm({
     resolver: zodResolver(doctorProfileSchema),
     defaultValues: {
@@ -75,6 +76,7 @@ const DoctorAvailabilityPage = () => {
       fee: "80",
       bio: "",
       education: "",
+      experienceDetails: "",
     },
     mode: "onChange",
   });
@@ -90,6 +92,7 @@ const DoctorAvailabilityPage = () => {
         if (doc) {
           if (doc.workingHours) {
             setHours(doc.workingHours);
+            setOriginalHours(doc.workingHours);
           }
           reset({
             fullName: doc.name || user?.displayName || "",
@@ -99,6 +102,7 @@ const DoctorAvailabilityPage = () => {
             fee: String(doc.fee ?? 500),
             bio: doc.bio || "",
             education: doc.education || "",
+            experienceDetails: doc.experienceDetails || "",
           });
         }
       } catch (error) {
@@ -134,6 +138,7 @@ const DoctorAvailabilityPage = () => {
     setIsSavingAvail(true);
     try {
       await updateDoctorAvailability(hours);
+      setOriginalHours(hours);
       showSuccess("Your working hours have been saved.", "Availability Updated!");
     } catch (error) {
       showError("Failed to update availability.", "Error");
@@ -146,12 +151,24 @@ const DoctorAvailabilityPage = () => {
     setIsSavingProfile(true);
     try {
       let avatarUrl = profile?.avatar;
+      let avatarUploadFailed = false;
+      
       if (photoFile) {
-        const { ref, uploadBytes, getDownloadURL } = await import("firebase/storage");
-        const { storage } = await import("../../lib/firebase");
-        const storageRef = ref(storage, `avatars/${user.uid}_${Date.now()}`);
-        await uploadBytes(storageRef, photoFile);
-        avatarUrl = await getDownloadURL(storageRef);
+        try {
+          const formData = new FormData();
+          formData.append("image", photoFile);
+          const res = await fetch(
+            `https://api.imgbb.com/1/upload?key=92c4f48b8520017aa469eba82303d7c3`,
+            { method: "POST", body: formData }
+          );
+          const json = await res.json();
+          if (!json.success) throw new Error("Photo upload failed");
+          avatarUrl = json.data.url;
+        } catch (uploadError) {
+          console.error("Avatar upload failed:", uploadError);
+          avatarUploadFailed = true;
+          // Continue saving the rest of the profile data
+        }
       }
 
       const payload = {
@@ -162,13 +179,20 @@ const DoctorAvailabilityPage = () => {
         fee: Number(data.fee),
         bio: data.bio,
         education: data.education,
+        experienceDetails: data.experienceDetails,
         avatar: avatarUrl,
       };
       await updateDoctorProfile(payload);
       if (refreshProfile) refreshProfile();
       queryClient.invalidateQueries({ queryKey: ["doctor"] });
       queryClient.invalidateQueries({ queryKey: ["doctors"] });
-      showSuccess("Your profile has been saved successfully.", "Profile Updated!");
+      
+      if (avatarUploadFailed) {
+        showError("Profile saved, but avatar upload to ImgBB failed.", "Partial Success");
+      } else {
+        showSuccess("Your profile has been saved successfully.", "Profile Updated!");
+      }
+      reset(data);
     } catch (error) {
       showError("Failed to update profile.", "Error");
     } finally {
@@ -188,6 +212,8 @@ const DoctorAvailabilityPage = () => {
   };
 
   const initials = (user?.displayName || "D").split(" ").map((n) => n[0]).join("").toUpperCase();
+
+  const isAvailDirty = JSON.stringify(hours) !== JSON.stringify(originalHours);
 
   return (
     <div className="space-y-6">
@@ -275,7 +301,7 @@ const DoctorAvailabilityPage = () => {
             </div>
             <Button
               onClick={saveAvailability}
-              disabled={isSavingAvail}
+              disabled={isSavingAvail || !isAvailDirty}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white border-none h-11 font-semibold shadow-lg shadow-blue-600/20"
             >
               {isSavingAvail ? (
@@ -422,11 +448,23 @@ const DoctorAvailabilityPage = () => {
                   />
                   {errors.education && <p className="text-red-400 text-xs">{errors.education.message}</p>}
                 </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs text-text-secondary font-medium">Professional Experience</label>
+                  <textarea
+                    {...register("experienceDetails")}
+                    placeholder="e.g. Senior Consultant at Dhaka Medical College (2020 - Present)"
+                    className={cn(
+                      "w-full bg-background-tertiary border border-border text-text-primary rounded-xl p-3 min-h-[70px] focus:outline-none focus:ring-1 focus:ring-accent-primary/30 text-sm resize-none placeholder:text-text-secondary/50",
+                      errors.experienceDetails && "border-red-500/50"
+                    )}
+                  />
+                  {errors.experienceDetails && <p className="text-red-400 text-xs">{errors.experienceDetails.message}</p>}
+                </div>
               </div>
 
               <Button
                 type="submit"
-                disabled={isSavingProfile || !isValid}
+                disabled={isSavingProfile || !isValid || !isDirty}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white border-none h-11 font-semibold shadow-lg shadow-blue-600/20"
               >
                 {isSavingProfile ? (

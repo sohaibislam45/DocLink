@@ -144,7 +144,7 @@ router.get("/my/dashboard", verifyToken, async (req, res) => {
 // PATCH /api/doctors/my/profile - Update doctor's own profile (Requires Auth)
 router.patch("/my/profile", verifyToken, async (req, res) => {
   try {
-    const { name, specialty, experience, fee, education, bio, avatar, gender, phone, languages, isOnline } = req.body;
+    const { name, specialty, experience, fee, education, experienceDetails, bio, avatar, gender, phone, languages, isOnline } = req.body;
     
     const updateFields = {};
     if (name !== undefined) updateFields.name = name;
@@ -152,6 +152,7 @@ router.patch("/my/profile", verifyToken, async (req, res) => {
     if (experience !== undefined) updateFields.experience = Number(experience);
     if (fee !== undefined) updateFields.fee = Number(fee);
     if (education !== undefined) updateFields.education = education;
+    if (experienceDetails !== undefined) updateFields.experienceDetails = experienceDetails;
     if (bio !== undefined) updateFields.bio = bio;
     if (avatar !== undefined) updateFields.avatar = avatar;
     if (gender !== undefined) updateFields.gender = gender;

@@ -12,6 +12,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginSchema, registerSchema } from "../../schemas/authSchemas";
 import { showError } from "../../lib/swal";
+import axiosClient from "../../lib/axiosClient";
 
 import { useTheme } from "../../context/ThemeContext";
 import { cn } from "../../lib/utils";
@@ -31,7 +32,7 @@ const AuthComponent = ({ type }) => {
     register,
     handleSubmit,
     reset,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm({
     resolver: zodResolver(isLogin ? loginSchema : registerSchema),
     defaultValues: {
@@ -55,9 +56,11 @@ const AuthComponent = ({ type }) => {
     setAuthError("");
     try {
       const result = await signInWithPopup(auth, googleProvider);
+      await axiosClient.post("/auth/verify-role", { role: type });
       loginWithRole(result.user, type);
       navigate(type === "doctor" ? "/doctor/dashboard" : "/patient/dashboard");
     } catch (err) {
+      await auth.signOut();
       setAuthError(err.message);
       showError(err.message);
     } finally {
@@ -72,15 +75,18 @@ const AuthComponent = ({ type }) => {
     try {
       if (isLogin) {
         const result = await signInWithEmailAndPassword(auth, data.email, data.password);
+        await axiosClient.post("/auth/verify-role", { role: type });
         loginWithRole(result.user, type);
         navigate(type === "doctor" ? "/doctor/dashboard" : "/patient/dashboard");
       } else {
         const result = await createUserWithEmailAndPassword(auth, data.email, data.password);
+        await axiosClient.post("/auth/verify-role", { role: type });
         await updateProfile(result.user, { displayName: data.fullName });
         loginWithRole(result.user, type);
         navigate(type === "doctor" ? "/doctor/dashboard" : "/patient/dashboard");
       }
     } catch (err) {
+      await auth.signOut();
       setAuthError(err.message);
     } finally {
       setIsLoading(false);
@@ -261,7 +267,7 @@ const AuthComponent = ({ type }) => {
             <Button
               type="submit"
               className="w-full bg-cyan-500 hover:bg-cyan-600 text-white h-11 font-medium transition-all shadow-lg shadow-cyan-500/20"
-              disabled={isLoading}
+              disabled={isLoading || !isDirty}
             >
               {isLoading && <Lucide.Loader2 className="w-4 h-4 animate-spin mr-2" />}
               {isLogin ? "Sign In" : "Create Account"}
@@ -277,10 +283,12 @@ const AuthComponent = ({ type }) => {
                     const demoEmail = type === "doctor" ? "doctor@demo.com" : "patient@demo.com";
                     const demoPass = "password123";
                     const result = await signInWithEmailAndPassword(auth, demoEmail, demoPass);
+                    await axiosClient.post("/auth/verify-role", { role: type });
                     loginWithRole(result.user, type);
                     navigate(type === "doctor" ? "/doctor/dashboard" : "/patient/dashboard");
                   } catch (err) {
-                    setAuthError("Demo account not available. Please try standard login.");
+                    await auth.signOut();
+                    setAuthError(err.message || "Demo account not available. Please try standard login.");
                   } finally {
                     setIsLoading(false);
                   }

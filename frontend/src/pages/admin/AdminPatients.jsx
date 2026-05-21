@@ -183,7 +183,7 @@ export default function AdminPatients() {
 }
 
 function PatientModal({ open, onOpenChange, patient, onSubmit, isPending }) {
-  const { register, handleSubmit, reset, formState: { errors } } = useForm({
+  const { register, handleSubmit, reset, formState: { errors, isDirty } } = useForm({
     resolver: zodResolver(adminPatientSchema),
   });
 
@@ -342,7 +342,7 @@ function PatientModal({ open, onOpenChange, patient, onSubmit, isPending }) {
             <button type="button" onClick={() => onOpenChange(false)} className="px-4 py-2 text-sm font-medium text-[#475569] dark:text-[#8B9FC4] hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg transition-colors">
               Cancel
             </button>
-            <button type="submit" disabled={isPending || uploading} className="px-6 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-bold rounded-lg transition-colors disabled:opacity-50">
+            <button type="submit" disabled={isPending || uploading || !isDirty} className="px-6 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-bold rounded-lg transition-colors disabled:opacity-50">
               {isPending ? "Saving..." : "Update Patient"}
             </button>
           </div>

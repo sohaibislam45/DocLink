@@ -241,11 +241,11 @@ export default function AdminDoctors() {
 }
 
 function DoctorModal({ open, onOpenChange, doctor, onSubmit, isPending }) {
-  const { register, handleSubmit, reset, setValue, setError, watch, formState: { errors } } = useForm({
+  const { register, handleSubmit, reset, setValue, setError, watch, formState: { errors, isDirty } } = useForm({
     resolver: zodResolver(adminDoctorSchema),
   });
 
-  const isOnlineValue = watch("isOnline", false);
+  const verifiedValue = watch("verified", false);
 
   const [avatarUrl, setAvatarUrl] = React.useState("");
   const [uploading, setUploading] = React.useState(false);
@@ -264,7 +264,7 @@ function DoctorModal({ open, onOpenChange, doctor, onSubmit, isPending }) {
           education: doctor.education || "",
           experienceDetails: doctor.experienceDetails || "",
           rating: doctor.rating || 0,
-          isOnline: doctor.isOnline || false,
+          verified: doctor.verified || false,
           email: doctor.email || "",
           password: "",
         });
@@ -273,7 +273,7 @@ function DoctorModal({ open, onOpenChange, doctor, onSubmit, isPending }) {
         reset({
           name: "", specialty: "", experience: 0, fee: 0, 
           bio: "", gender: "male", education: "", experienceDetails: "", rating: 0,
-          isOnline: false,
+          verified: false,
           email: "",
           password: "",
         });
@@ -452,17 +452,17 @@ function DoctorModal({ open, onOpenChange, doctor, onSubmit, isPending }) {
 
           <div className="flex items-center justify-between p-3 rounded-lg border border-red-500/10 bg-[#111D35]/10 dark:bg-[#111D35]/50">
             <div>
-              <label className="text-xs font-bold text-[#475569] dark:text-[#8B9FC4] uppercase block">Online Status</label>
-              <span className="text-[11px] text-text-secondary">Determine if doctor is available for online consultation</span>
+              <label className="text-xs font-bold text-[#475569] dark:text-[#8B9FC4] uppercase block">Verification Status</label>
+              <span className="text-[11px] text-text-secondary">Determine if doctor is verified and publicly visible</span>
             </div>
             <div className="flex items-center gap-2">
               <Switch 
-                checked={isOnlineValue} 
-                onCheckedChange={(checked) => setValue("isOnline", checked)}
-                className={isOnlineValue ? "bg-emerald-500" : "bg-gray-200 dark:bg-white/10"}
+                checked={verifiedValue} 
+                onCheckedChange={(checked) => setValue("verified", checked, { shouldDirty: true })}
+                className={verifiedValue ? "bg-emerald-500" : "bg-gray-200 dark:bg-white/10"}
               />
-              <span className={`text-[11px] font-semibold uppercase ${isOnlineValue ? "text-emerald-500" : "text-text-secondary"}`}>
-                {isOnlineValue ? "Online" : "Offline"}
+              <span className={`text-[11px] font-semibold uppercase ${verifiedValue ? "text-emerald-500" : "text-text-secondary"}`}>
+                {verifiedValue ? "Verified" : "Unverified"}
               </span>
             </div>
           </div>
@@ -471,7 +471,7 @@ function DoctorModal({ open, onOpenChange, doctor, onSubmit, isPending }) {
             <button type="button" onClick={() => onOpenChange(false)} className="px-4 py-2 text-sm font-medium text-[#475569] dark:text-[#8B9FC4] hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg transition-colors">
               Cancel
             </button>
-            <button type="submit" disabled={isPending || uploading} className="px-6 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-bold rounded-lg transition-colors disabled:opacity-50">
+            <button type="submit" disabled={isPending || uploading || !isDirty} className="px-6 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-bold rounded-lg transition-colors disabled:opacity-50">
               {isPending ? "Saving..." : doctor ? "Update Doctor" : "Create Doctor"}
             </button>
           </div>

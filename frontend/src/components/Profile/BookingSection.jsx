@@ -19,8 +19,7 @@ const BookingSection = ({ queueState, onOpenIntakeForm }) => {
     queryFn: fetchPublicSettings,
   });
 
-  const platformFeeAmount = settings?.platformFee || 50;
-  const totalFee = (doctor?.fee || 0) + platformFeeAmount;
+  const consultationFee = doctor?.fee || 0;
 
   // If loading the queue state, render a nice skeleton card to prevent CTA flashing
   if (queueState.loading) {
@@ -82,15 +81,13 @@ const BookingSection = ({ queueState, onOpenIntakeForm }) => {
             <div className="flex flex-col">
               <div className="flex items-baseline justify-between w-full">
                 <div>
-                  <span className="text-4xl font-black text-accent-primary">৳{totalFee}</span>
+                  <span className="text-4xl font-black text-accent-primary">৳{consultationFee}</span>
                   <span className="text-text-secondary ml-1 font-medium">/ session</span>
                 </div>
               </div>
-              {platformFeeAmount > 0 && (
-                <p className="text-[10px] text-text-secondary mt-1 opacity-70">
-                  (Incl. ৳{platformFeeAmount} service charge)
-                </p>
-              )}
+              <p className="text-[10px] text-text-secondary mt-1 opacity-70">
+                + service charge applies at checkout
+              </p>
             </div>
 
             {/* Offline State */}

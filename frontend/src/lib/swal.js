@@ -44,7 +44,7 @@ export const showSuccess = (message) => {
   const theme = getTheme();
   DocSwal.fire({
     toast: true,
-    position: 'bottom-end',
+    position: 'top',
     icon: 'success',
     title: message,
     showConfirmButton: false,
@@ -63,7 +63,7 @@ export const showError = (message) => {
   const theme = getTheme();
   DocSwal.fire({
     toast: true,
-    position: 'bottom-end',
+    position: 'top',
     icon: 'error',
     title: message,
     showConfirmButton: false,
@@ -82,7 +82,7 @@ export const showWarning = (message) => {
   const theme = getTheme();
   DocSwal.fire({
     toast: true,
-    position: 'bottom-end',
+    position: 'top',
     icon: 'warning',
     title: message,
     showConfirmButton: false,
@@ -101,7 +101,7 @@ export const showInfo = (message) => {
   const theme = getTheme();
   DocSwal.fire({
     toast: true,
-    position: 'bottom-end',
+    position: 'top',
     icon: 'info',
     title: message,
     showConfirmButton: false,
@@ -162,7 +162,7 @@ export const swalError = (title, message) =>
 export const swalToast = (type, message) => {
   const theme = getTheme();
   DocSwal.fire({
-    toast: true, position: 'bottom-end', icon: type, title: message,
+    toast: true, position: 'top', icon: type, title: message,
     showConfirmButton: false, timer: 3000, timerProgressBar: true,
     background: theme.background, color: theme.color
   });
