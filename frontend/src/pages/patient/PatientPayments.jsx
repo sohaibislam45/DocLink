@@ -7,6 +7,7 @@ import { Button } from "../../components/ui/Button";
 import { Skeleton } from "../../components/ui/Skeleton";
 import { showSuccess, showError, showConfirm } from "../../lib/swal";
 import { cn } from "../../lib/utils";
+import { jsPDF } from "jspdf";
 
 const PatientPayments = () => {
   const [payments, setPayments] = useState([]);
@@ -61,6 +62,162 @@ const PatientPayments = () => {
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
     showSuccess("Stripe session ID copied to clipboard!");
+  };
+
+  const generateReceiptPDF = (payment) => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    // 1. Top Colored Bar
+    doc.setFillColor(37, 99, 235); // Blue-600
+    doc.rect(0, 0, pageWidth, 8, 'F');
+    
+    // 2. INVOICE text on right
+    doc.setFontSize(28);
+    doc.setFont(undefined, 'bold');
+    doc.setTextColor(50, 50, 50);
+    doc.text("Invoice", pageWidth - 20, 30, { align: 'right' });
+    
+    // 3. Logo & Company details on left
+    doc.setFontSize(20);
+    doc.setTextColor(100, 100, 100);
+    doc.text("DocLink", 20, 30);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(50, 50, 50);
+    doc.setFont(undefined, 'bold');
+    doc.text("DocLink Inc.", 20, 45);
+    doc.setFont(undefined, 'normal');
+    doc.text("Uttara Sector 10", 20, 50);
+    doc.text("Dhaka, Bangladesh", 20, 55);
+    
+    // 4. Contact details next to company info
+    const contactX = 80;
+    doc.setFontSize(9);
+    doc.setFont(undefined, 'bold');
+    doc.text("Phone", contactX, 45);
+    doc.text("Email", contactX, 50);
+    doc.text("Website", contactX, 55);
+    
+    doc.setFont(undefined, 'normal');
+    doc.text("01968017308", contactX + 20, 45);
+    doc.text("support@doclink.com", contactX + 20, 50);
+    doc.text("www.doclink-sohaib.vercel.app", contactX + 20, 55);
+    
+    // 5. Grey Information Box
+    doc.setFillColor(245, 245, 245);
+    doc.rect(20, 70, pageWidth - 40, 30, 'F');
+    
+    const dateStr = payment.paidAt 
+      ? new Date(payment.paidAt).toLocaleDateString() 
+      : new Date(payment.createdAt).toLocaleDateString();
+      
+    // Bill to
+    doc.setFontSize(9);
+    doc.setFont(undefined, 'bold');
+    doc.text("Bill to", 25, 78);
+    doc.setFont(undefined, 'normal');
+    doc.text(payment.patientName || "Verified Patient", 25, 84);
+    doc.text("Registered Patient", 25, 89);
+    
+    // Consultant
+    doc.setFont(undefined, 'bold');
+    doc.text("Consultant", 85, 78);
+    doc.setFont(undefined, 'normal');
+    doc.text(`Dr. ${payment.doctorName}`, 85, 84);
+    doc.text("Medical Specialist", 85, 89);
+    
+    // Details
+    doc.setFont(undefined, 'bold');
+    doc.text("Details", 145, 78);
+    doc.setFont(undefined, 'normal');
+    doc.text("Invoice #", 145, 84);
+    doc.text((payment.stripeSessionId || "").substring(0, 10) + "...", 165, 84);
+    doc.text("Date", 145, 89);
+    doc.text(dateStr, 165, 89);
+    doc.text("Status", 145, 94);
+    doc.setTextColor(16, 185, 129); // Emerald
+    doc.text("PAID", 165, 94);
+    doc.setTextColor(50, 50, 50);
+    
+    // 6. Table Header
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'bold');
+    doc.text("Service", 20, 115);
+    doc.text("Description", 70, 115);
+    doc.text("Qty", 140, 115, { align: 'center' });
+    doc.text("Rate", 160, 115, { align: 'right' });
+    doc.text("Amount", pageWidth - 20, 115, { align: 'right' });
+    
+    doc.setDrawColor(220, 220, 220);
+    doc.setLineWidth(0.5);
+    doc.line(20, 120, pageWidth - 20, 120);
+    
+    // 7. Table Content
+    doc.setFont(undefined, 'normal');
+    const consultFee = ((payment.consultationFee || 0) / 100).toFixed(2);
+    const platformFee = ((payment.platformFee || 0) / 100).toFixed(2);
+    const totalAmount = ((payment.totalAmount || 0) / 100).toFixed(2);
+    
+    let y = 130;
+    
+    // Item 1: Consultation
+    doc.text("Consultation", 20, y);
+    const splitReason = doc.splitTextToSize(payment.reason || "General Consultation", 60);
+    doc.text(splitReason, 70, y);
+    doc.text("1", 140, y, { align: 'center' });
+    doc.text(`BDT ${consultFee}`, 160, y, { align: 'right' });
+    doc.text(`BDT ${consultFee}`, pageWidth - 20, y, { align: 'right' });
+    
+    y += (splitReason.length * 5) + 5;
+    
+    // Item 2: Platform Fee
+    doc.text("Platform Fee", 20, y);
+    doc.text("Booking and maintenance fee", 70, y);
+    doc.text("1", 140, y, { align: 'center' });
+    doc.text(`BDT ${platformFee}`, 160, y, { align: 'right' });
+    doc.text(`BDT ${platformFee}`, pageWidth - 20, y, { align: 'right' });
+    
+    y += 15;
+    doc.line(20, y, pageWidth - 20, y);
+    
+    // 8. Bottom Section (Totals & Message)
+    y += 15;
+    
+    // Left: Message
+    doc.setFont(undefined, 'bold');
+    doc.text("Customer message", 20, y);
+    doc.setFont(undefined, 'normal');
+    doc.text("Hello!", 20, y + 8);
+    
+    const msg = "Thank you for your purchase. Please retain this invoice for your records. If requested, present it during your consultation.";
+    const splitMsg = doc.splitTextToSize(msg, 90);
+    doc.text(splitMsg, 20, y + 16);
+    doc.text("Thanks!", 20, y + 16 + (splitMsg.length * 5) + 5);
+    
+    // Right: Totals
+    doc.setFont(undefined, 'bold');
+    doc.text("Subtotal", 130, y);
+    doc.setFont(undefined, 'normal');
+    doc.text(`BDT ${totalAmount}`, pageWidth - 20, y, { align: 'right' });
+    
+    doc.setFont(undefined, 'bold');
+    doc.text("Sales tax", 130, y + 8);
+    doc.setFont(undefined, 'normal');
+    doc.text("BDT 0.00", pageWidth - 20, y + 8, { align: 'right' });
+    
+    // Thick line before Total
+    doc.setLineWidth(1.5);
+    doc.setDrawColor(0, 0, 0);
+    doc.line(130, y + 15, pageWidth - 20, y + 15);
+    
+    doc.setFontSize(14);
+    doc.setFont(undefined, 'bold');
+    doc.text("Total", 130, y + 25);
+    doc.text(`BDT ${totalAmount}`, pageWidth - 20, y + 25, { align: 'right' });
+    
+    // Open PDF in a new tab instead of forcing download
+    window.open(doc.output('bloburl'), '_blank');
   };
 
   // Metric summaries
@@ -244,7 +401,7 @@ const PatientPayments = () => {
                       <th className="p-4">Date & Time</th>
                       <th className="p-4">Total Amount</th>
                       <th className="p-4">Status</th>
-                      <th className="p-4 text-right">Actions</th>
+                      <th className="p-4">Receipt</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -287,7 +444,17 @@ const PatientPayments = () => {
                           <td className="p-4">
                             {getStatusBadge(p.status)}
                           </td>
-                          <td className="p-4 text-right">
+                          <td className="p-4 text-right flex items-center justify-end gap-2">
+                            {p.status === "completed" && p.stripeSessionId && (
+                              <Button
+                                variant="outline"
+                                className="border-blue-500/30 text-blue-500 hover:bg-blue-500/10 hover:text-blue-600 text-xs px-3 py-1.5 h-auto rounded-lg"
+                                onClick={() => generateReceiptPDF(p)}
+                              >
+                                <Lucide.FileText className="w-3.5 h-3.5 mr-1 inline" />
+                                Receipt
+                              </Button>
+                            )}
                             {isCancellable && (
                               <Button
                                 variant="outline"
@@ -363,21 +530,33 @@ const PatientPayments = () => {
                           <div />
                         )}
 
-                        {isCancellable && (
-                          <Button
-                            variant="outline"
-                            className="border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-500/10 hover:text-red-700 dark:hover:text-red-300 text-xs h-9 px-4 rounded-xl"
-                            disabled={processingId === p._id}
-                            onClick={() => handleCancelPayment(p._id)}
-                          >
-                            {processingId === p._id ? (
-                              <Lucide.Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5 inline" />
-                            ) : (
-                              <Lucide.Trash2 className="w-3.5 h-3.5 mr-1.5 inline" />
-                            )}
-                            Cancel Checkout
-                          </Button>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {p.status === "completed" && p.stripeSessionId && (
+                            <Button
+                              variant="outline"
+                              onClick={() => generateReceiptPDF(p)}
+                              className="border-blue-500/30 text-blue-500 hover:bg-blue-500/10 text-xs h-9 px-4 rounded-xl"
+                            >
+                              <Lucide.FileText className="w-3.5 h-3.5 mr-1.5 inline" />
+                              Receipt
+                            </Button>
+                          )}
+                          {isCancellable && (
+                            <Button
+                              variant="outline"
+                              className="border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-500/10 hover:text-red-700 dark:hover:text-red-300 text-xs h-9 px-4 rounded-xl"
+                              disabled={processingId === p._id}
+                              onClick={() => handleCancelPayment(p._id)}
+                            >
+                              {processingId === p._id ? (
+                                <Lucide.Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5 inline" />
+                              ) : (
+                                <Lucide.Trash2 className="w-3.5 h-3.5 mr-1.5 inline" />
+                              )}
+                              Cancel Checkout
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </motion.div>
                   );

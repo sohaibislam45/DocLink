@@ -410,10 +410,6 @@ const PatientProfile = () => {
                   Change Password
                 </Button>
               )}
-              <Button variant="outline" className="w-full bg-background-tertiary border-border text-text-primary hover:bg-background-secondary justify-start h-11">
-                <Lucide.Fingerprint className="w-4 h-4 mr-2" />
-                Two-Factor Auth
-              </Button>
             </div>
           </div>
 

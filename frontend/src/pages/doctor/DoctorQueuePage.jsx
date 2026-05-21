@@ -57,22 +57,15 @@ const DoctorQueuePage = () => {
       navigate(`/room/${roomId}`);
     } catch (err) {
       console.error("Failed to create room:", err);
-      showError("Failed to create video room.", "Error");
+      const isAuthError = err.message?.includes("authentication-error");
+      const errorMsg = isAuthError 
+        ? "Invalid Daily.co API key. Please configure a valid DAILY_API_KEY in your backend .env file."
+        : (err.message || "Failed to create video room.");
+      showError(errorMsg, "Error");
     }
   };
 
-  const handleSkipPatient = async (patient) => {
-    if (!socket) return;
-    const isConfirmed = await showConfirm(
-      `${patient.patientName} will be moved to the end of the queue.`,
-      "Skip this patient?",
-      "warning",
-      "Skip Patient"
-    );
-    if (isConfirmed) {
-      socket.emit("queue:skip", { doctorId: user.uid, entryId: patient._id });
-    }
-  };
+
 
   const endConsultation = () => {
     if (!currentPatient || !socket) return;
@@ -154,13 +147,7 @@ const DoctorQueuePage = () => {
                       {new Date(patient.joinedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                     <span className="text-text-secondary/60 text-xs hidden md:block">~{patient.estimatedWaitMins} min wait</span>
-                    <button
-                      onClick={() => handleSkipPatient(patient)}
-                      className="p-2 rounded-lg text-text-secondary hover:text-amber-400 hover:bg-amber-400/10 transition-all"
-                      title="Skip patient"
-                    >
-                      <Lucide.SkipForward className="w-4 h-4" />
-                    </button>
+
                   </div>
                 </motion.div>
               ))}
@@ -203,7 +190,7 @@ const DoctorQueuePage = () => {
                 </div>
                 <div>
                   <h3 className="text-text-primary font-semibold text-lg">Ready to Start</h3>
-                  <p className="text-text-secondary text-sm mt-1">Call the next patient to begin the consultation</p>
+                  <p className="text-text-secondary text-sm mt-1">Click on &quot;Join the call&quot; to begin the consultation</p>
                 </div>
                 <Button
                   onClick={handleCallNext}
@@ -211,7 +198,7 @@ const DoctorQueuePage = () => {
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white border-none shadow-lg shadow-blue-600/20 h-12 font-semibold"
                 >
                   <Lucide.PhoneCall className="w-5 h-5 mr-2" />
-                  Call Next Patient
+                  Join the Call
                 </Button>
               </motion.div>
             ) : (

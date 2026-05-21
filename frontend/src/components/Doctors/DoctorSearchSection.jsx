@@ -4,7 +4,7 @@ import { Search, ChevronDown } from 'lucide-react';
 import { useDoctorSearch } from '../../context/DoctorSearchContext';
 
 const DoctorSearchSection = () => {
-  const { searchQuery, setSearchQuery, sortBy, setSortBy, filteredDoctors } = useDoctorSearch();
+  const { searchQuery, setSearchQuery, sortBy, setSortBy, filteredDoctors, filters, handleFilterChange } = useDoctorSearch();
 
   return (
     <motion.div 
@@ -34,6 +34,19 @@ const DoctorSearchSection = () => {
             <option value="rating">Top Rated</option>
             <option value="price-low">Price: Low to High</option>
             <option value="price-high">Price: High to Low</option>
+          </select>
+          <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary pointer-events-none" />
+        </div>
+
+        <div className="relative w-full md:w-40">
+          <select 
+            value={filters.isOnline}
+            onChange={(e) => handleFilterChange('isOnline', e.target.value)}
+            className="w-full appearance-none bg-background-tertiary/50 border-none rounded-2xl py-3.5 pl-4 pr-10 text-sm font-medium focus:ring-2 focus:ring-accent-primary/20 transition-all outline-none cursor-pointer"
+          >
+            <option value="All">All Status</option>
+            <option value="Online">Online Now</option>
+            <option value="Offline">Offline</option>
           </select>
           <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary pointer-events-none" />
         </div>

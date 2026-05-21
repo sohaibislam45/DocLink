@@ -24,7 +24,8 @@ export const DoctorSearchProvider = ({ children }) => {
     rating: 0,
     priceRange: [0, 1000],
     availability: null,
-    gender: 'All'
+    gender: 'All',
+    isOnline: 'All'
   });
 
   useEffect(() => {
@@ -64,7 +65,8 @@ export const DoctorSearchProvider = ({ children }) => {
       rating: 0,
       priceRange: [0, 1000],
       availability: null,
-      gender: 'All'
+      gender: 'All',
+      isOnline: 'All'
     });
     setSearchQuery('');
   };
@@ -73,8 +75,11 @@ export const DoctorSearchProvider = ({ children }) => {
     const matchesSearch = doc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                         doc.specialty.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesGender = filters.gender === 'All' || doc.gender === filters.gender;
+    const matchesOnline = filters.isOnline === 'All' || 
+                         (filters.isOnline === 'Online' && doc.isOnline) || 
+                         (filters.isOnline === 'Offline' && !doc.isOnline);
     
-    return matchesSearch && matchesGender;
+    return matchesSearch && matchesGender && matchesOnline;
   });
 
   const value = {
