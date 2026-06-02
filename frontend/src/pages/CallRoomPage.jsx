@@ -1,16 +1,13 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { DailyProvider, useDaily, useLocalSessionId,
-         useParticipantIds, useVideoTrack, useAudioTrack } from "@daily-co/daily-react";
-import { fetchRoom, getMeetingToken, endRoom } from "../api/rooms.js";
+import { fetchRoom, endRoom } from "../api/rooms.js";
 import { useAuth } from "../context/AuthContext.jsx";
-import { motion, AnimatePresence } from "framer-motion";
-import { Mic, MicOff, Video, VideoOff, PhoneOff } from "lucide-react";
+import { motion } from "framer-motion";
+import { JitsiMeeting } from "@jitsi/react-sdk";
 
 export default function CallRoomPage() {
   const { roomId } = useParams();
   const [room, setRoom] = useState(null);
-  const [meetingToken, setMeetingToken] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { role } = useAuth();
@@ -21,12 +18,6 @@ export default function CallRoomPage() {
       try {
         const roomData = await fetchRoom(roomId);
         setRoom(roomData);
-
-        const { token } = await getMeetingToken({
-          roomName: roomData.roomName,
-          isOwner: isDoctor,
-        });
-        setMeetingToken(token);
       } catch (err) {
         setError(err.message);
       } finally {
@@ -34,53 +25,28 @@ export default function CallRoomPage() {
       }
     };
     init();
-  }, [roomId, isDoctor]);
+  }, [roomId]);
 
   if (loading) return <div className="flex items-center justify-center h-screen bg-slate-900 text-white">Loading call...</div>;
   if (error) return <div className="flex items-center justify-center h-screen bg-slate-900 text-red-500">{error}</div>;
 
-  return (
-    <DailyProvider url={room.roomUrl} token={meetingToken}>
-      <CallRoom room={room} roomId={roomId} isDoctor={isDoctor} />
-    </DailyProvider>
-  );
+  return <CallRoom room={room} roomId={roomId} isDoctor={isDoctor} />;
 }
 
 function CallRoom({ room, roomId, isDoctor }) {
-  const daily = useDaily();
   const navigate = useNavigate();
   const { user, socket } = useAuth();
 
-  const [isMuted, setIsMuted] = useState(false);
-  const [isCameraOff, setIsCameraOff] = useState(false);
-  const [callDuration, setCallDuration] = useState(0); // seconds
   const [postCallState, setPostCallState] = useState(null);
   // postCallState: null | "doctor-writing" | "prescription-issued"
 
-  const localSessionId = useLocalSessionId();
-  const remoteParticipantIds = useParticipantIds({ filter: "remote" });
-
-  // ── Call timer ─────────────────────────────────────────────────────────────
-  useEffect(() => {
-    const interval = setInterval(() => setCallDuration(d => d + 1), 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const formatDuration = (secs) => {
-    const m = Math.floor(secs / 60).toString().padStart(2, "0");
-    const s = (secs % 60).toString().padStart(2, "0");
-    return `${m}:${s}`;
-  };
-
-  // ── Join call on mount ─────────────────────────────────────────────────────
-  useEffect(() => {
-    if (daily) daily.join();
-    return () => { if (daily) daily.leave(); };
-  }, [daily]);
-
   // ── Socket: listen for post-call events (patient side) ────────────────────
   useEffect(() => {
-    if (!socket || isDoctor) return;
+    if (!socket || isDoctor || !room) return;
+
+    // Explicitly join the doctor's room to ensure we receive socket broadcasts
+    // even if we navigated directly or hot-reloaded the CallRoomPage
+    socket.emit("join:room", { doctorId: room.doctorId });
 
     const handleDoctorWriting = ({ patientUid }) => {
       if (patientUid === user.uid) setPostCallState("doctor-writing");
@@ -90,31 +56,27 @@ function CallRoom({ room, roomId, isDoctor }) {
       if (patientUid === user.uid) setPostCallState("prescription-issued");
     };
 
+    const handleCallEnded = ({ patientUid }) => {
+      if (patientUid === user.uid && !postCallState) {
+        // Cut the call for the patient if the doctor ends it
+        setPostCallState("doctor-writing");
+      }
+    };
+
     socket.on("call:doctor-writing", handleDoctorWriting);
     socket.on("call:prescription-issued", handlePrescriptionIssued);
+    socket.on("call:ended", handleCallEnded);
 
     return () => {
       socket.off("call:doctor-writing", handleDoctorWriting);
       socket.off("call:prescription-issued", handlePrescriptionIssued);
+      socket.off("call:ended", handleCallEnded);
     };
-  }, [socket, isDoctor, user]);
-
-  // ── Controls ───────────────────────────────────────────────────────────────
-  const toggleMute = () => {
-    daily.setLocalAudio(isMuted);
-    setIsMuted(!isMuted);
-  };
-
-  const toggleCamera = () => {
-    daily.setLocalVideo(isCameraOff);
-    setIsCameraOff(!isCameraOff);
-  };
+  }, [socket, isDoctor, user, room, postCallState]);
 
   const handleEndCall = async () => {
-    daily.leave();
-
     if (isDoctor) {
-      // 1. End room in backend + Daily.co
+      // 1. End room in backend
       await endRoom(roomId);
 
       // 2. Notify patient via socket
@@ -127,7 +89,7 @@ function CallRoom({ room, roomId, isDoctor }) {
       });
 
       // 4. Navigate doctor to prescription writer
-      navigate(`/doctor/prescriptions/new?patient=${encodeURIComponent(room.patientUid)}&roomId=${roomId}`);
+      navigate(`/doctor/prescriptions/new?patient=${encodeURIComponent(room.patientName || "Patient")}&uid=${encodeURIComponent(room.patientUid)}&roomId=${roomId}`);
     } else {
       // Patient: show "Doctor is writing prescription" screen
       setPostCallState("doctor-writing");
@@ -147,7 +109,7 @@ function CallRoom({ room, roomId, isDoctor }) {
             <>
               <div className="w-16 h-16 mx-auto mb-6 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
               <h2 className="text-2xl font-bold mb-2">Doctor is writing your prescription</h2>
-              <p className="text-slate-400 mb-6">Please wait while Dr. {room.doctorId} prepares your medical notes and prescription.</p>
+              <p className="text-slate-400 mb-6">Please wait while the doctor prepares your medical notes and prescription.</p>
             </>
           ) : (
             <>
@@ -172,130 +134,32 @@ function CallRoom({ room, roomId, isDoctor }) {
   }
 
   return (
-    <div className="relative w-full h-screen bg-slate-950 flex flex-col overflow-hidden">
-      {/* ── Remote Participant (full screen) ── */}
-      <div className="flex-1 relative">
-        {remoteParticipantIds.length > 0 ? (
-          <RemoteParticipantTile participantId={remoteParticipantIds[0]} />
-        ) : (
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-500">
-            <motion.div 
-              animate={{ scale: [1, 1.1, 1] }}
-              transition={{ repeat: Infinity, duration: 2 }}
-              className="w-24 h-24 mb-6 rounded-full bg-slate-800 flex items-center justify-center"
-            >
-              <Video className="w-10 h-10 opacity-50" />
-            </motion.div>
-            <p className="text-xl font-medium">Waiting for other participant to join...</p>
-          </div>
-        )}
-
-        {/* ── Local Participant (picture-in-picture) ── */}
-        <div className="absolute bottom-24 right-6 w-48 aspect-[3/4] bg-slate-800 rounded-2xl overflow-hidden shadow-2xl border-2 border-slate-700 z-10">
-          <RemoteParticipantTile participantId={localSessionId} isLocal />
-        </div>
-
-        {/* ── Call info overlay (top bar) ── */}
-        <div className="absolute top-0 inset-x-0 p-6 flex justify-between items-start bg-gradient-to-b from-black/80 to-transparent z-10 pointer-events-none">
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-3">
-              <span className="relative flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-              </span>
-              <h2 className="text-white font-medium text-lg shadow-black drop-shadow-md">
-                {isDoctor ? "In Consultation" : "Consulting Doctor"}
-              </h2>
-            </div>
-            <p className="text-slate-300 text-sm shadow-black drop-shadow-md ml-6">
-              Room: {room.roomName.split('-').pop()}
-            </p>
-          </div>
-          <div className="bg-black/40 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 text-white font-mono shadow-lg">
-            {formatDuration(callDuration)}
-          </div>
-        </div>
-      </div>
-
-      {/* ── Bottom Toolbar ── */}
-      <div className="h-24 bg-slate-900/90 backdrop-blur-lg border-t border-slate-800 flex items-center justify-center gap-6 px-6 z-20">
-        {/* Mute */}
-        <button
-          onClick={toggleMute}
-          className={`p-4 rounded-full transition-all ${
-            isMuted 
-              ? "bg-red-500/20 text-red-500 hover:bg-red-500/30" 
-              : "bg-slate-700 text-white hover:bg-slate-600"
-          }`}
-          title={isMuted ? "Unmute" : "Mute"}
-        >
-          {isMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
-        </button>
-
-        {/* Camera */}
-        <button
-          onClick={toggleCamera}
-          className={`p-4 rounded-full transition-all ${
-            isCameraOff 
-              ? "bg-red-500/20 text-red-500 hover:bg-red-500/30" 
-              : "bg-slate-700 text-white hover:bg-slate-600"
-          }`}
-          title={isCameraOff ? "Turn Camera On" : "Turn Camera Off"}
-        >
-          {isCameraOff ? <VideoOff className="w-6 h-6" /> : <Video className="w-6 h-6" />}
-        </button>
-
-        {/* End Call */}
-        <button
-          onClick={handleEndCall}
-          className="p-4 rounded-full bg-red-600 text-white hover:bg-red-700 transition-all shadow-lg shadow-red-600/20"
-          title="End Call"
-        >
-          <PhoneOff className="w-6 h-6" />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function RemoteParticipantTile({ participantId, isLocal = false }) {
-  const videoTrack = useVideoTrack(participantId);
-  const audioTrack = useAudioTrack(participantId);
-  const videoRef = useRef(null);
-  const audioRef = useRef(null);
-
-  useEffect(() => {
-    if (videoRef.current && videoTrack?.persistentTrack) {
-      videoRef.current.srcObject = new MediaStream([videoTrack.persistentTrack]);
-    }
-  }, [videoTrack]);
-
-  useEffect(() => {
-    if (audioRef.current && audioTrack?.persistentTrack && !isLocal) {
-      audioRef.current.srcObject = new MediaStream([audioTrack.persistentTrack]);
-    }
-  }, [audioTrack, isLocal]);
-
-  return (
-    <div className="relative w-full h-full bg-slate-900 flex items-center justify-center overflow-hidden">
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        muted={isLocal} // Mute local video to prevent echo
-        className={`w-full h-full object-cover ${isLocal ? 'scale-x-[-1]' : ''}`}
+    <div className="w-full h-screen bg-slate-950">
+      <JitsiMeeting
+        roomName={room.roomName}
+        configOverwrite={{
+          startWithAudioMuted: false,
+          startWithVideoMuted: false,
+          disableModeratorIndicator: true,
+          prejoinPageEnabled: false,
+        }}
+        interfaceConfigOverwrite={{
+          DISABLE_JOIN_LEAVE_NOTIFICATIONS: true,
+        }}
+        userInfo={{
+          displayName: user?.displayName || (isDoctor ? "Doctor" : "Patient")
+        }}
+        onApiReady={(externalApi) => {
+          // Listen for the hangup event
+          externalApi.addListener("videoConferenceLeft", () => {
+            handleEndCall();
+          });
+        }}
+        getIFrameRef={(iframeRef) => {
+          iframeRef.style.height = '100%';
+          iframeRef.style.width = '100%';
+        }}
       />
-      {!isLocal && (
-        <audio ref={audioRef} autoPlay playsInline />
-      )}
-      
-      {(!videoTrack || videoTrack.state === "off") && (
-        <div className="absolute inset-0 bg-slate-800 flex items-center justify-center">
-          <div className="w-20 h-20 bg-slate-700 rounded-full flex items-center justify-center">
-            <VideoOff className="w-8 h-8 text-slate-500" />
-          </div>
-        </div>
-      )}
     </div>
   );
 }

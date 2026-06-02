@@ -1,15 +1,18 @@
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import Navbar from './header/Navbar';
 import Footer from './footer/Footer';
 
 const MainLayout = () => {
+  const location = useLocation();
+  const isRoomPage = location.pathname.startsWith('/room/');
+
   return (
     <div className="bg-background-primary min-h-screen text-text-primary overflow-x-hidden flex flex-col">
-      <Navbar />
+      {!isRoomPage && <Navbar />}
       <main className="flex-grow">
         <Outlet />
       </main>
-      <Footer />
+      {!isRoomPage && <Footer />}
     </div>
   );
 };

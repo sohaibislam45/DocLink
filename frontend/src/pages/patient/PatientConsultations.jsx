@@ -7,62 +7,70 @@ import { Badge } from "../../components/ui/Badge";
 import { Button } from "../../components/ui/Button";
 import { Skeleton } from "../../components/ui/Skeleton";
 import { cn } from "../../lib/utils";
+import { Avatar, AvatarImage, AvatarFallback } from "../../components/ui/Avatar";
 
-const ConsultationCard = ({ consultation }) => (
-  <motion.div
-    layout
-    initial={{ opacity: 0, y: 20 }}
-    whileInView={{ opacity: 1, y: 0 }}
-    viewport={{ once: true }}
-    className="bg-white/5 border border-white/10 rounded-2xl p-6 hover:border-cyan-500/30 transition-all group"
-  >
-    <div className="flex flex-col md:flex-row gap-6">
-      {/* Left: Doctor Info */}
-      <div className="flex items-center gap-4 min-w-[200px]">
-        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold text-xl shrink-0 border-2 border-white/5">
-          {consultation.doctorInitials || "DR"}
-        </div>
-        <div>
-          <h4 className="text-white font-semibold group-hover:text-cyan-400 transition-colors">
-            {consultation.doctorName}
-          </h4>
-          <p className="text-gray-500 text-sm">{consultation.specialty}</p>
-        </div>
-      </div>
-
-      {/* Center: Details */}
-      <div className="flex-1 flex flex-col gap-2">
-        <div className="flex items-center gap-4 text-sm text-gray-400">
-          <div className="flex items-center gap-1.5">
-            <Lucide.Calendar className="w-4 h-4 text-cyan-500/50" />
-            {consultation.date}
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Lucide.Clock className="w-4 h-4 text-cyan-500/50" />
-            {consultation.duration}
+const ConsultationCard = ({ consultation }) => {
+  const doctorInitials = consultation.doctorInitials || (consultation.doctorName ? consultation.doctorName.replace("Dr. ", "").split(" ").map(n => n[0]).join("").toUpperCase() : "DR");
+  
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      className="bg-background-secondary border border-border/80 rounded-2xl p-6 hover:border-accent-primary/40 transition-all group shadow-sm"
+    >
+      <div className="flex flex-col md:flex-row gap-6">
+        {/* Left: Doctor Info */}
+        <div className="flex items-center gap-4 min-w-[200px]">
+          <Avatar className="h-14 w-14 border-2 border-background-tertiary shrink-0">
+            <AvatarImage src={consultation.doctorAvatar} alt={consultation.doctorName} className="object-cover" />
+            <AvatarFallback className="bg-gradient-to-br from-accent-primary to-accent-secondary text-white font-bold text-lg">
+              {doctorInitials}
+            </AvatarFallback>
+          </Avatar>
+          <div>
+            <h4 className="text-text-primary font-semibold group-hover:text-accent-primary transition-colors">
+              {consultation.doctorName}
+            </h4>
+            <p className="text-text-secondary/70 text-sm font-medium">{consultation.specialty}</p>
           </div>
         </div>
-        <p className="text-gray-400 text-sm italic line-clamp-2">
-          "{consultation.summary}"
-        </p>
-      </div>
 
-      {/* Right: Status & Actions */}
-      <div className="flex md:flex-col items-center md:items-end justify-between md:justify-center gap-4">
-        <Badge className="bg-green-500/10 text-green-400 border-green-500/20 hover:bg-green-500/10">
-          {consultation.status}
-        </Badge>
-        {consultation.prescriptionId && (
-          <Button variant="ghost" className="text-xs h-8 text-cyan-400 hover:text-white hover:bg-cyan-500/20 rounded-lg" asChild>
-            <Link to="/patient/prescriptions">
-              View Prescription
-            </Link>
-          </Button>
-        )}
+        {/* Center: Details */}
+        <div className="flex-1 flex flex-col gap-2">
+          <div className="flex items-center gap-4 text-sm text-text-secondary">
+            <div className="flex items-center gap-1.5 font-medium">
+              <Lucide.Calendar className="w-4 h-4 text-accent-primary/60" />
+              {consultation.date}
+            </div>
+            <div className="flex items-center gap-1.5 font-medium">
+              <Lucide.Clock className="w-4 h-4 text-accent-primary/60" />
+              {consultation.duration}
+            </div>
+          </div>
+          <p className="text-text-secondary text-sm italic line-clamp-2 leading-relaxed">
+            "{consultation.summary || "General checkup and consultation session."}"
+          </p>
+        </div>
+
+        {/* Right: Status & Actions */}
+        <div className="flex md:flex-col items-center md:items-end justify-between md:justify-center gap-4">
+          <Badge className="bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20 hover:bg-green-500/10 font-bold px-3 py-1">
+            {consultation.status}
+          </Badge>
+          {consultation.prescriptionId && (
+            <Button variant="ghost" className="text-xs h-8 text-accent-primary hover:text-white hover:bg-accent-primary rounded-lg transition-all" asChild>
+              <Link to="/patient/prescriptions">
+                View Prescription
+              </Link>
+            </Button>
+          )}
+        </div>
       </div>
-    </div>
-  </motion.div>
-);
+    </motion.div>
+  );
+};
 
 const PatientConsultations = () => {
   const [activeTab, setActiveTab] = useState("past");
@@ -100,20 +108,20 @@ const PatientConsultations = () => {
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-white mb-1">My Consultations</h2>
-          <p className="text-gray-500">View and manage your consultation history.</p>
+          <h2 className="text-2xl font-bold text-text-primary mb-1">My Consultations</h2>
+          <p className="text-text-secondary">View and manage your consultation history.</p>
         </div>
 
         {/* Tab Switcher */}
-        <div className="bg-white/5 p-1 rounded-xl flex gap-1 self-start w-full md:w-auto">
+        <div className="bg-background-secondary border border-border p-1 rounded-xl flex gap-1 self-start w-full md:w-auto shadow-sm">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all flex-1 md:flex-none ${
+              className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all flex-1 md:flex-none ${
                 activeTab === tab.id
-                  ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/20"
-                  : "text-gray-400 hover:text-white hover:bg-white/5"
+                  ? "bg-accent-primary text-white shadow-lg shadow-accent-primary/20"
+                  : "text-text-secondary hover:text-text-primary hover:bg-background-tertiary"
               }`}
             >
               <tab.icon className="w-4 h-4" />
@@ -137,7 +145,7 @@ const PatientConsultations = () => {
                 <Skeleton key={i} className="h-32 w-full rounded-2xl" />
               ))
             ) : error ? (
-              <div className="flex flex-col items-center justify-center py-10 text-center bg-white/5 rounded-2xl border border-white/10">
+              <div className="flex flex-col items-center justify-center py-10 text-center bg-background-secondary rounded-2xl border border-border">
                 <Lucide.AlertCircle className="w-10 h-10 text-red-500 mb-4" />
                 <p className="text-text-secondary">Failed to load consultations.</p>
               </div>
@@ -146,7 +154,7 @@ const PatientConsultations = () => {
                 <ConsultationCard key={consultation.id} consultation={consultation} />
               ))
             ) : (
-              <div className="text-center py-20 text-text-secondary italic">
+              <div className="text-center py-20 text-text-secondary italic bg-background-secondary border border-border rounded-2xl">
                 No consultation history found.
               </div>
             )}
@@ -162,28 +170,30 @@ const PatientConsultations = () => {
             {queueHistory.map((item) => (
               <motion.div
                 key={item.id}
-                className="bg-white/5 border border-white/10 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-4 hover:border-cyan-500/30 transition-all"
+                className="bg-background-secondary border border-border/80 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-4 hover:border-accent-primary/40 transition-all shadow-sm"
               >
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-cyan-500/10 flex items-center justify-center">
-                    <Lucide.Users className="w-6 h-6 text-cyan-400" />
+                  <div className="w-12 h-12 rounded-full bg-accent-primary/10 flex items-center justify-center">
+                    <Lucide.Users className="w-6 h-6 text-accent-primary" />
                   </div>
                   <div>
-                    <h4 className="text-white font-semibold">{item.doctorName}</h4>
-                    <p className="text-gray-500 text-sm">{item.date}</p>
+                    <h4 className="text-text-primary font-semibold">{item.doctorName}</h4>
+                    <p className="text-text-secondary text-sm font-medium">{item.date}</p>
                   </div>
                 </div>
-                <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-gray-400">
-                  <span className="bg-white/5 px-3 py-1 rounded-full border border-white/5">
+                <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-text-secondary font-medium">
+                  <span className="bg-background-tertiary px-3 py-1 rounded-full border border-border">
                     Position {item.position}
                   </span>
-                  <span className="bg-white/5 px-3 py-1 rounded-full border border-white/5">
+                  <span className="bg-background-tertiary px-3 py-1 rounded-full border border-border">
                     Wait: {item.waitTime}
                   </span>
                 </div>
                 <Badge className={cn(
-                  "px-3 py-1",
-                  item.status === "Consulted" ? "bg-green-500/10 text-green-400 border-green-500/20" : "bg-gray-500/10 text-gray-400 border-gray-500/20"
+                  "px-3 py-1 font-bold",
+                  item.status === "Consulted" 
+                    ? "bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20" 
+                    : "bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20"
                 )}>
                   {item.status}
                 </Badge>
@@ -197,3 +207,4 @@ const PatientConsultations = () => {
 };
 
 export default PatientConsultations;
+

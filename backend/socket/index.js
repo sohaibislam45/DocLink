@@ -78,11 +78,21 @@ export const initSocket = (io) => {
     });
 
     // --- DOCTOR MARKS CONSULTATION DONE ---
-    socket.on("queue:done", async ({ doctorId, entryId }) => {
+    socket.on("queue:done", async ({ doctorId, entryId, patientUid }) => {
       const room = `doctor-${doctorId}`;
 
       try {
-        const entry = await QueueEntry.findById(entryId);
+        let entry;
+        if (entryId) {
+          entry = await QueueEntry.findById(entryId);
+        } else if (patientUid) {
+          entry = await QueueEntry.findOne({ 
+            doctorId, 
+            patientUid, 
+            status: { $in: ["called", "in-consultation"] } 
+          });
+        }
+        
         if (!entry) return;
 
         const donePosition = entry.position;

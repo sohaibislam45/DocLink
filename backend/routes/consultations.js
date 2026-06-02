@@ -26,7 +26,22 @@ router.get("/my", verifyToken, async (req, res) => {
     const consultations = await Consultation.find({
       $or: [{ patientUid: req.user.uid }, { doctorId: req.user.uid }]
     }).sort({ createdAt: -1 });
-    res.json(consultations);
+
+    // Fetch doctor avatars
+    const doctorIds = [...new Set(consultations.map(c => c.doctorId).filter(Boolean))];
+    const doctors = await mongoose.model("Doctor").find({ id: { $in: doctorIds } });
+    const doctorMap = {};
+    doctors.forEach(d => {
+      doctorMap[d.id] = d.avatar;
+    });
+
+    const results = consultations.map(c => {
+      const obj = c.toObject();
+      obj.doctorAvatar = doctorMap[c.doctorId] || null;
+      return obj;
+    });
+
+    res.json(results);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

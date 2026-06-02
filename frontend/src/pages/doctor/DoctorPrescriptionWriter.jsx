@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import * as Lucide from "lucide-react";
+import PrescriptionPreviewCard from "../../components/common/PrescriptionPreviewCard";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { jsPDF } from "jspdf";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
@@ -33,14 +34,17 @@ const todayFormatted = () => {
 };
 
 const DoctorPrescriptionWriter = () => {
-  const { user } = useAuth();
+  const { user, profile, socket } = useAuth();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [generated, setGenerated] = useState(false);
+  const [rxId] = useState(() => `RX-${Math.random().toString(16).substring(2, 10).toUpperCase()}`);
 
   const doctorName = user?.displayName || "Doctor";
+  const doctorSpeciality = profile?.speciality || "";
   const dateStr = todayFormatted();
   const patientUid = searchParams.get("uid") || "demo_patient_uid";
+  const roomId = searchParams.get("roomId") || null;
 
   const {
     register,
@@ -55,6 +59,7 @@ const DoctorPrescriptionWriter = () => {
       patientName: searchParams.get("patient") || "",
       age: "",
       gender: "",
+      weight: "",
       diagnosis: searchParams.get("reason") || "",
       notes: "",
       medicines: [
@@ -86,6 +91,7 @@ const DoctorPrescriptionWriter = () => {
   const handleGenerate = async (data) => {
     try {
       const payload = {
+        id: rxId,
         patientUid: patientUid,
         doctorId: user.uid,
         doctorName: doctorName,
@@ -103,13 +109,27 @@ const DoctorPrescriptionWriter = () => {
       setGenerated(true);
       reset(data);
       showSuccess("Prescription issued and sent to patient's dashboard successfully!", "Prescription Sent");
+
+      // Notify the patient that prescription is ready (removes "Doctor is writing" screen)
+      if (socket) {
+        socket.emit("call:prescription-done", {
+          doctorId: user.uid,
+          patientUid: patientUid,
+        });
+
+        // Also mark the queue entry as done to clear them from the queue
+        socket.emit("queue:done", {
+          doctorId: user.uid,
+          patientUid: patientUid,
+        });
+      }
     } catch (err) {
       showError("Failed to issue prescription.", "Error");
     }
   };
 
   const onInvalid = (errors) => {
-    showWarning("Please fill all required fields before generating.", "Validation Error");
+    showError("Please fill all required fields before generating.", "Validation Error");
   };
 
   const handleClear = () => {
@@ -117,6 +137,7 @@ const DoctorPrescriptionWriter = () => {
       patientName: "",
       age: "",
       gender: "",
+      weight: "",
       diagnosis: "",
       notes: "",
       medicines: [
@@ -139,70 +160,218 @@ const DoctorPrescriptionWriter = () => {
   };
 
   const handleDownloadPDF = () => {
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
+    try {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
 
-    // Header
-    doc.setFontSize(20);
-    doc.setFont("helvetica", "bold");
-    doc.text("DocLink - Medical Prescription", 20, 22);
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Date: ${dateStr}`, pageWidth - 20, 22, { align: "right" });
-    doc.line(20, 28, pageWidth - 20, 28);
+      // 1. BRANDED HEADER SECTION
+      doc.setFillColor(16, 185, 129); // #10B981
+      doc.rect(0, 0, pageWidth, 45, "F");
 
-    // Doctor
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text(`Prescribed by: Dr. ${doctorName}`, 20, 38);
-    doc.setFont("helvetica", "normal");
-
-    // Patient
-    doc.setFontSize(11);
-    doc.text(`Patient: ${formValues.patientName}`, 20, 50);
-    if (formValues.age) doc.text(`Age: ${formValues.age}`, 20, 57);
-    if (formValues.gender) doc.text(`Gender: ${formValues.gender}`, 80, 57);
-    doc.setFont("helvetica", "bold");
-    doc.text(`Diagnosis: ${formValues.diagnosis}`, 20, 67);
-    doc.setFont("helvetica", "normal");
-
-    // Medicines
-    doc.line(20, 74, pageWidth - 20, 74);
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text("Medicines:", 20, 82);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-
-    let y = 92;
-    medicinesValue.forEach((med, idx) => {
-      if (!med.name) return;
+      // Doctor info on header
+      doc.setTextColor(255, 255, 255);
       doc.setFont("helvetica", "bold");
-      doc.text(`${idx + 1}. ${med.name}`, 25, y);
+      doc.setFontSize(22);
+      doc.text(`Dr. ${doctorName.replace("Dr. ", "")}`, 20, 22);
+
+      if (doctorSpeciality) {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        doc.text(doctorSpeciality.toUpperCase(), 20, 30);
+      }
+
+      // Top right doclink text badge
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.text("DocLink", pageWidth - 20, 20, { align: "right" });
       doc.setFont("helvetica", "normal");
-      doc.text(`   ${med.dosage} — ${med.frequency} for ${med.duration || "—"}`, 25, y + 6);
-      y += 16;
-    });
+      doc.setFontSize(7);
+      doc.text("OFFICIAL DIGITAL PRESCRIPTION", pageWidth - 20, 27, { align: "right" });
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7);
+      doc.setTextColor(255, 255, 255, 0.7);
+      doc.text(`ID: ${rxId}`, pageWidth - 20, 34, { align: "right" });
 
-    // Notes
-    if (formValues.notes) {
-      doc.line(20, y, pageWidth - 20, y);
-      y += 8;
+      // 2. PATIENT INFO GRID (Underlined fields)
+      doc.setTextColor(50, 50, 50);
+      doc.setDrawColor(220, 220, 220);
+      doc.setLineWidth(0.5);
+
+      let infoY = 62;
+      // Row 1: Patient Name & Date
       doc.setFont("helvetica", "bold");
-      doc.text("Notes:", 20, y);
-      doc.setFont("helvetica", "italic");
-      const splitNotes = doc.splitTextToSize(formValues.notes, pageWidth - 40);
-      doc.text(splitNotes, 20, y + 7);
+      doc.setFontSize(9);
+      doc.text("PATIENT NAME:", 20, infoY);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.text(formValues.patientName || "Valued Patient", 50, infoY);
+      doc.line(50, infoY + 2, 130, infoY + 2);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.text("DATE:", 140, infoY);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.text(dateStr || "", 155, infoY);
+      doc.line(155, infoY + 2, pageWidth - 20, infoY + 2);
+
+      // Row 2: Age, Gender, Weight
+      infoY += 12;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.text("AGE:", 20, infoY);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.text(String(formValues.age || ""), 32, infoY);
+      doc.line(32, infoY + 2, 60, infoY + 2);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.text("GENDER:", 70, infoY);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.text(formValues.gender || "", 90, infoY);
+      doc.line(90, infoY + 2, 130, infoY + 2);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.text("WEIGHT:", 140, infoY);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.text(formValues.weight ? `${formValues.weight} kg` : "—", 160, infoY);
+      doc.line(160, infoY + 2, pageWidth - 20, infoY + 2);
+
+      // Row 3: Diagnosis
+      infoY += 12;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.text("DIAGNOSIS:", 20, infoY);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(16, 185, 129); // Accent color for emphasis
+      doc.text(formValues.diagnosis || "General checkup", 45, infoY);
+      doc.line(45, infoY + 2, pageWidth - 20, infoY + 2);
+
+      // 3. Rx SECTION — left column: Rx symbol + ECG, right column: medicines
+      const rxSectionY = infoY + 18;
+
+      // Left side: large italic "Rx" symbol
+      doc.setTextColor(16, 185, 129);
+      doc.setFont("times", "italic");
+      doc.setFontSize(36);
+      doc.text("Rx", 20, rxSectionY + 10);
+
+      // Draw ECG wave line below Rx symbol
+      doc.setDrawColor(16, 185, 129);
+      doc.setLineWidth(1.2);
+      const ex = 20, ey = rxSectionY + 18;
+      doc.line(ex, ey, ex + 10, ey);
+      doc.line(ex + 10, ey, ex + 14, ey - 10);
+      doc.line(ex + 14, ey - 10, ex + 19, ey + 10);
+      doc.line(ex + 19, ey + 10, ex + 24, ey - 5);
+      doc.line(ex + 24, ey - 5, ex + 28, ey + 2);
+      doc.line(ex + 28, ey + 2, ex + 32, ey);
+      doc.line(ex + 32, ey, ex + 47, ey);
+
+      // 4. MEDICINES — listed to the right of the Rx symbol, starting at x=75
+      const medX = 75;
+      let currentY = rxSectionY;
+      doc.setTextColor(50, 50, 50);
+
+      const validMeds = medicinesValue.filter(m => m && m.name);
+      if (validMeds.length === 0) {
+        doc.setFont("helvetica", "italic");
+        doc.setFontSize(10);
+        doc.setTextColor(120, 120, 120);
+        doc.text("No medicines prescribed.", medX, currentY + 6);
+        currentY += 20;
+      } else {
+        validMeds.forEach((med) => {
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(11);
+          doc.setTextColor(16, 185, 129);
+          doc.text(med.name, medX, currentY + 6);
+
+          if (med.dosage) {
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(50, 50, 50);
+            const nameWidth = doc.getTextWidth(med.name);
+            doc.text(med.dosage, medX + nameWidth + 4, currentY + 6);
+          }
+
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(9.5);
+          doc.setTextColor(80, 80, 80);
+          const detailStr = `${med.frequency}${med.duration ? ` for ${med.duration}` : ""}`;
+          doc.text(detailStr, medX, currentY + 12.5);
+
+          currentY += 18;
+        });
+      }
+      // Advance below whichever is taller: Rx column or medicines column
+      currentY = Math.max(currentY, rxSectionY + 38);
+
+
+      // 5. ADDITIONAL NOTES SECTION
+      if (formValues.notes) {
+        currentY += 4;
+        doc.setDrawColor(240, 240, 240);
+        doc.line(20, currentY, pageWidth - 20, currentY);
+        currentY += 8;
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8.5);
+        doc.setTextColor(120, 120, 120);
+        doc.text("ADDITIONAL NOTES:", 20, currentY);
+
+        doc.setFont("times", "italic");
+        doc.setFontSize(10);
+        doc.setTextColor(60, 60, 60);
+        const splitNotes = doc.splitTextToSize(formValues.notes, pageWidth - 40);
+        doc.text(splitNotes, 20, currentY + 5.5);
+      }
+
+      // 6. DOCTOR SIGNATURE SECTION (Times Italic simulates Autograph)
+      const sigY = 248;
+      doc.setDrawColor(180, 180, 180);
+      doc.setLineWidth(0.5);
+      doc.line(pageWidth - 85, sigY, pageWidth - 20, sigY);
+
+      doc.setFont("times", "italic");
+      doc.setFontSize(16);
+      doc.setTextColor(16, 185, 129); // Signature accent color
+      doc.text(doctorName, pageWidth - 52.5, sigY - 4, { align: "center" });
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(8);
+      doc.setTextColor(80, 80, 80);
+      doc.text("SIGNATURE", pageWidth - 52.5, sigY + 5, { align: "center" });
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7);
+      doc.setTextColor(150, 150, 150);
+      doc.text(dateStr, pageWidth - 52.5, sigY + 9, { align: "center" });
+
+      // 7. BRANDED FOOTER BAR
+      doc.setFillColor(16, 185, 129);
+      doc.rect(0, 282, pageWidth, 15, "F");
+
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.text("DocLink Healthcare", 20, 291);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.text("Uttara Sector 10, Dhaka  |  Phone: 01812345678", pageWidth - 20, 291, { align: "right" });
+
+      const safeName = formValues.patientName.replace(/\s+/g, "_");
+      const safeDate = dateStr.replace(/\s+/g, "_");
+      doc.save(`DocLink_Rx_${safeName}_${safeDate}.pdf`);
+    } catch (err) {
+      console.error(err);
+      alert("Error generating PDF. Please try again.");
     }
-
-    // Footer
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.text("Generated by DocLink Telemedicine Portal", 20, 280);
-
-    const safeName = formValues.patientName.replace(/\s+/g, "_");
-    const safeDate = dateStr.replace(/\s+/g, "_");
-    doc.save(`DocLink_Rx_${safeName}_${safeDate}.pdf`);
   };
 
 
@@ -223,8 +392,8 @@ const DoctorPrescriptionWriter = () => {
               <Lucide.UserCircle className="w-5 h-5 text-accent-primary" />
               Patient Information
             </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="sm:col-span-2 space-y-1.5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="sm:col-span-3 space-y-1.5">
                 <label className="text-sm text-gray-400 font-medium">
                   Patient Name <span className="text-red-400">*</span>
                 </label>
@@ -242,10 +411,19 @@ const DoctorPrescriptionWriter = () => {
                 <label className="text-sm text-gray-400 font-medium">Age</label>
                 <Input
                   type="number"
+                  min={0}
+                  max={150}
                   {...register("age")}
+                  onKeyDown={(e) => {
+                    if (["e", "E", "+", "-", "."].includes(e.key)) e.preventDefault();
+                  }}
                   placeholder="e.g. 32"
-                  className="bg-background-tertiary border-border text-text-primary h-11"
+                  className={cn(
+                    "bg-background-tertiary border-border text-text-primary h-11",
+                    errors.age && "border-red-500/60"
+                  )}
                 />
+                {errors.age && <p className="text-red-400 text-xs">{errors.age.message}</p>}
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm text-gray-400 font-medium">Gender</label>
@@ -266,20 +444,37 @@ const DoctorPrescriptionWriter = () => {
                   )}
                 />
               </div>
-              <div className="sm:col-span-2 space-y-1.5">
-                <label className="text-sm text-gray-400 font-medium">
-                  Diagnosis <span className="text-red-400">*</span>
-                </label>
+              <div className="space-y-1.5">
+                <label className="text-sm text-gray-400 font-medium">Weight <span className="text-gray-500 font-normal">(kg)</span></label>
                 <Input
-                  {...register("diagnosis")}
-                  placeholder="e.g. Mild hypertension"
+                  type="number"
+                  min={0}
+                  {...register("weight")}
+                  onKeyDown={(e) => {
+                    if (["e", "E", "+", "-", "."].includes(e.key)) e.preventDefault();
+                  }}
+                  placeholder="e.g. 70"
                   className={cn(
                     "bg-background-tertiary border-border text-text-primary h-11",
-                    errors.diagnosis && "border-red-500/60"
+                    errors.weight && "border-red-500/60"
                   )}
                 />
-                {errors.diagnosis && <p className="text-red-400 text-xs">{errors.diagnosis.message}</p>}
+                {errors.weight && <p className="text-red-400 text-xs">{errors.weight.message}</p>}
               </div>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm text-gray-400 font-medium">
+                Diagnosis <span className="text-red-400">*</span>
+              </label>
+              <Input
+                {...register("diagnosis")}
+                placeholder="e.g. Mild hypertension"
+                className={cn(
+                  "bg-background-tertiary border-border text-text-primary h-11",
+                  errors.diagnosis && "border-red-500/60"
+                )}
+              />
+              {errors.diagnosis && <p className="text-red-400 text-xs">{errors.diagnosis.message}</p>}
             </div>
           </div>
 
@@ -468,8 +663,8 @@ const DoctorPrescriptionWriter = () => {
                 >
                   {/* Preview card with generated badge */}
                   <div className="relative">
-                    <PreviewCard form={formValues} medicines={medicinesValue} doctorName={doctorName} dateStr={dateStr} />
-                    <span className="absolute top-4 right-4 flex items-center gap-1.5 bg-green-500/20 text-green-400 border border-green-500/30 text-xs font-semibold px-3 py-1.5 rounded-full">
+                  <PrescriptionPreviewCard form={formValues} medicines={medicinesValue} doctorName={doctorName} doctorSpeciality={doctorSpeciality} dateStr={dateStr} prescriptionId={rxId} />
+                    <span className="absolute top-4 right-4 flex items-center gap-1.5 bg-green-500/20 text-green-400 border border-green-500/30 text-xs font-semibold px-3 py-1.5 rounded-full z-30">
                       <Lucide.Check className="w-3 h-3" />
                       Issued & Sent
                     </span>
@@ -510,7 +705,7 @@ const DoctorPrescriptionWriter = () => {
                 </motion.div>
               ) : (
                 <motion.div key="preview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                  <PreviewCard form={formValues} medicines={medicinesValue} doctorName={doctorName} dateStr={dateStr} />
+                  <PrescriptionPreviewCard form={formValues} medicines={medicinesValue} doctorName={doctorName} doctorSpeciality={doctorSpeciality} dateStr={dateStr} prescriptionId={rxId} />
                 </motion.div>
               )}
             </AnimatePresence>
@@ -520,114 +715,4 @@ const DoctorPrescriptionWriter = () => {
     </div>
   );
 };
-
-// Live preview card component
-const PreviewCard = ({ form, medicines, doctorName, dateStr }) => {
-  const doctorInitials = doctorName ? doctorName.replace("Dr. ", "").split(" ").map(n => n[0]).join("").toUpperCase() : "DR";
-  
-  return (
-    <div className="bg-background-secondary border border-border rounded-2xl overflow-hidden shadow-xl transition-all hover:shadow-2xl hover:border-accent-primary/20 relative p-6">
-      {/* Top styling band matching accent primary */}
-      <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-accent-primary to-accent-secondary" />
-      
-      {/* Pad Header */}
-      <div className="flex justify-between items-start gap-4 border-b border-border pb-4 mb-4">
-        <div>
-          <span className="text-[9px] font-bold text-accent-primary uppercase tracking-widest bg-accent-primary/10 px-2 py-0.5 rounded">
-            DocLink Telemedicine
-          </span>
-          <h3 className="text-text-primary font-bold text-lg mt-1 tracking-tight">
-            Dr. {doctorName}
-          </h3>
-          <p className="text-text-secondary text-[10px] uppercase tracking-wider mt-0.5">
-            DocLink Medical Provider
-          </p>
-        </div>
-        
-        <div className="text-right shrink-0">
-          <p className="text-text-secondary/60 text-[9px] uppercase tracking-wider font-semibold">Issue Date</p>
-          <p className="text-text-primary font-bold text-xs mt-0.5">{dateStr}</p>
-        </div>
-      </div>
-
-      {/* Patient Metadata Box */}
-      <div className="bg-background-tertiary border border-border rounded-xl p-3 flex flex-wrap items-center gap-y-2 justify-between mb-4">
-        <div>
-          <p className="text-text-secondary/60 text-[9px] uppercase tracking-wider font-semibold">Patient Name</p>
-          <p className="text-text-primary font-bold text-xs mt-0.5">{form.patientName || "—"}</p>
-        </div>
-        <div>
-          <p className="text-text-secondary/60 text-[9px] uppercase tracking-wider font-semibold">Diagnosis</p>
-          <span className="inline-block bg-amber-500/10 text-amber-600 border border-amber-500/20 text-[10px] font-semibold px-2 py-0.5 rounded mt-0.5">
-            {form.diagnosis || "—"}
-          </span>
-        </div>
-      </div>
-
-      {/* Prescription Pad Body */}
-      <div className="flex gap-4 mb-4">
-        {/* Rx Symbol */}
-        <span className="font-serif italic font-extrabold text-accent-primary text-3xl tracking-tighter leading-none select-none shrink-0 mt-0.5">
-          Rx
-        </span>
-
-        {/* Medicines */}
-        <div className="flex-1 space-y-3">
-          <h4 className="text-text-primary font-bold text-[10px] uppercase tracking-widest border-b border-border pb-1.5">
-            Prescribed Medicines
-          </h4>
-          
-          {medicines.filter((m) => m && m.name).length === 0 ? (
-            <p className="text-text-secondary/50 text-[11px] italic">No medicines added yet</p>
-          ) : (
-            <div className="space-y-3">
-              {medicines.map((med, idx) =>
-                med && med.name ? (
-                  <div key={idx} className="flex items-start gap-2 text-xs">
-                    <div className="w-4 h-4 rounded-full bg-background-tertiary border border-border flex items-center justify-center text-text-secondary font-mono text-[10px] font-semibold shrink-0 mt-0.5">
-                      {idx + 1}
-                    </div>
-                    <div>
-                      <p className="text-text-primary font-bold text-xs leading-snug">{med.name}</p>
-                      <p className="text-text-secondary text-[10px] mt-0.5">
-                        {med.dosage || "1 Tab"} — {med.frequency}
-                        {med.duration && ` (Duration: ${med.duration})`}
-                      </p>
-                    </div>
-                  </div>
-                ) : null
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Notes Section */}
-      {form.notes && (
-        <div className="bg-background-tertiary border-l-4 border-accent-primary rounded-r-xl p-3 mb-4">
-          <p className="text-text-secondary/60 text-[9px] uppercase tracking-wider font-bold mb-0.5">
-            Clinical Notes
-          </p>
-          <p className="text-text-primary text-xs italic leading-relaxed">
-            "{form.notes}"
-          </p>
-        </div>
-      )}
-
-      {/* Footer */}
-      <div className="flex items-center justify-between border-t border-border pt-3 mt-4">
-        <span className="text-text-secondary/50 text-[9px] tracking-tight">Verified Digital Preview</span>
-
-        {/* Cursive Signature */}
-        <div className="flex flex-col items-end select-none shrink-0">
-          <div className="font-serif italic font-extrabold text-accent-primary text-sm leading-tight tracking-wider transform -rotate-1 bg-accent-primary/5 px-2 py-0.5 border border-accent-primary/10 rounded">
-            Dr. {doctorInitials}
-          </div>
-          <p className="text-text-secondary/50 text-[8px] uppercase mt-0.5">Authorized Signature</p>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 export default DoctorPrescriptionWriter;

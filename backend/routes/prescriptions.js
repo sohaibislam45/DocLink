@@ -45,7 +45,7 @@ router.post("/", verifyToken, async (req, res) => {
 
     const newPrescription = new Prescription({
       ...req.body,
-      id: req.body.id || `rx_${Math.random().toString(36).substring(2, 9)}`,
+      id: req.body.id || `RX-${Math.random().toString(16).substring(2, 10).toUpperCase()}`,
       patientUid,
       doctorId,
     });
