@@ -8,6 +8,8 @@ import { Skeleton } from "../../components/ui/Skeleton";
 import { showSuccess, showError, showConfirm } from "../../lib/swal";
 import { cn } from "../../lib/utils";
 import { jsPDF } from "jspdf";
+import Pagination from "../../components/common/Pagination";
+
 
 const PatientPayments = () => {
   const [payments, setPayments] = useState([]);
@@ -15,12 +17,15 @@ const PatientPayments = () => {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("all");
   const [processingId, setProcessingId] = useState(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
 
   const loadPayments = async () => {
     try {
       setLoading(true);
-      const data = await fetchMyPayments();
-      setPayments(data || []);
+      const data = await fetchMyPayments({ page, limit: 10 });
+      setPayments(data.payments || []);
+      setTotal(data.total || 0);
       setError(null);
     } catch (err) {
       console.error("Error loading payments:", err);
@@ -32,7 +37,8 @@ const PatientPayments = () => {
 
   useEffect(() => {
     loadPayments();
-  }, []);
+  }, [page]);
+
 
   const handleCancelPayment = async (paymentId) => {
     const confirmed = await showConfirm({
@@ -562,7 +568,15 @@ const PatientPayments = () => {
                   );
                 })}
               </div>
+
+              <Pagination 
+                page={page} 
+                total={total} 
+                limit={10} 
+                onPageChange={setPage} 
+              />
             </>
+
           ) : (
             <div className="text-center py-20 text-text-secondary bg-background-secondary border border-border rounded-2xl italic">
               No payments found matching the selection criteria.

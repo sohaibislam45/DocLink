@@ -26,7 +26,14 @@ const doctorSchema = new mongoose.Schema({
   verified: { type: Boolean, default: false },
   phone: { type: String, default: "" },
   languages: { type: [String], default: ["English"] },
+  
+  // Verification Info
+  bmdcNumber: { type: String },
+  doctorType: { type: String, default: "Medical Practitioner" },
+  verificationDocument: { type: String }, // URL to imgbb or similar
+
   workingHours: {
+
     type: Object,
     default: {
       Monday: { enabled: true, from: "09:00", to: "17:00" },
@@ -121,11 +128,37 @@ router.get("/my/dashboard", verifyToken, async (req, res) => {
     // Calculate average wait time from active queue entries
     const queueEntries = await mongoose.model("QueueEntry").find({ doctorId: req.user.uid });
     const waitingEntries = queueEntries.filter(entry => entry.status === "waiting");
-    let avgWait = 15; // default fallback
+    let avgWait = 6; // default fallback
     if (waitingEntries.length > 0) {
       const sum = waitingEntries.reduce((acc, curr) => acc + (curr.estimatedWaitMins || 0), 0);
       avgWait = Math.round(sum / waitingEntries.length);
     }
+
+    // Calculate monthly revenue: sum of completed payments for this doctor this month
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    let monthlyRevenue = 0;
+    try {
+      const Payment = mongoose.model("Payment");
+      const revenueAgg = await Payment.aggregate([
+        {
+          $match: {
+            doctorId: req.user.uid,
+            status: "completed",
+            createdAt: { $gte: startOfMonth }
+          }
+        },
+        {
+          $group: { _id: null, total: { $sum: "$consultationFee" } }
+        }
+      ]);
+      monthlyRevenue = revenueAgg[0]?.total || 0;
+    } catch (_) {
+      // Payment model may not be loaded yet
+    }
+
 
     res.json({
       doctor,
@@ -133,7 +166,8 @@ router.get("/my/dashboard", verifyToken, async (req, res) => {
         patientsInQueue: waitingEntries.length,
         todayConsultations: consultationsTodayCount,
         avgWaitTime: avgWait,
-        rating: doctor ? doctor.rating : 5.0
+        rating: doctor ? doctor.rating : 5.0,
+        monthlyRevenue
       }
     });
   } catch (err) {
@@ -144,7 +178,7 @@ router.get("/my/dashboard", verifyToken, async (req, res) => {
 // PATCH /api/doctors/my/profile - Update doctor's own profile (Requires Auth)
 router.patch("/my/profile", verifyToken, async (req, res) => {
   try {
-    const { name, specialty, experience, fee, education, experienceDetails, bio, avatar, gender, phone, languages, isOnline } = req.body;
+    const { name, specialty, experience, fee, education, experienceDetails, bio, avatar, gender, phone, languages, isOnline, bmdcNumber, doctorType, verificationDocument } = req.body;
     
     const updateFields = {};
     if (name !== undefined) updateFields.name = name;
@@ -159,6 +193,10 @@ router.patch("/my/profile", verifyToken, async (req, res) => {
     if (phone !== undefined) updateFields.phone = phone;
     if (languages !== undefined) updateFields.languages = languages;
     if (isOnline !== undefined) updateFields.isOnline = isOnline;
+    if (bmdcNumber !== undefined) updateFields.bmdcNumber = bmdcNumber;
+    if (doctorType !== undefined) updateFields.doctorType = doctorType;
+    if (verificationDocument !== undefined) updateFields.verificationDocument = verificationDocument;
+
 
     // Recalculate initials if name changed
     if (name) {
@@ -201,24 +239,26 @@ router.patch("/my/availability", verifyToken, async (req, res) => {
 router.get("/my/patients", verifyToken, async (req, res) => {
   try {
     const doctorId = req.user.uid;
+    const { page = 1, limit = 10 } = req.query;
 
-    // 1. Fetch all consultations for this doctor
     const { Consultation } = await import("./consultations.js");
     const { Prescription } = await import("./prescriptions.js");
     const { Patient } = await import("./patients.js");
 
-    const consultations = await Consultation.find({ doctorId }).sort({ createdAt: -1 });
+    // 1. Get unique patient UIDs seen by this doctor, sorted by latest consultation
+    const patientStats = await Consultation.aggregate([
+      { $match: { doctorId } },
+      { $sort: { createdAt: -1 } },
+      { $group: { 
+          _id: "$patientUid", 
+          lastConsultation: { $first: "$$ROOT" } 
+      }},
+      { $sort: { "lastConsultation.createdAt": -1 } }
+    ]);
 
-    // Group consultations by patientUid
-    const patientGroups = {};
-    for (const c of consultations) {
-      if (!patientGroups[c.patientUid]) {
-        patientGroups[c.patientUid] = [];
-      }
-      patientGroups[c.patientUid].push(c);
-    }
-
-    const uniquePatientUids = Object.keys(patientGroups);
+    const total = patientStats.length;
+    const paginatedStats = patientStats.slice((page - 1) * limit, page * limit);
+    const uniquePatientUids = paginatedStats.map(s => s._id);
 
     // 2. Fetch full patient profile details
     const patients = await Patient.find({ uid: { $in: uniquePatientUids } });
@@ -227,21 +267,23 @@ router.get("/my/patients", verifyToken, async (req, res) => {
       patientMap[p.uid] = p;
     });
 
-    // 3. Fetch all prescriptions for this doctor
-    const prescriptions = await Prescription.find({ doctorId });
+    // 3. Fetch all prescriptions for these patient UIDs to check status
+    const prescriptions = await Prescription.find({ 
+      doctorId, 
+      patientUid: { $in: uniquePatientUids } 
+    });
     const prescriptionPatientUids = new Set(prescriptions.map(p => p.patientUid));
 
     // 4. Map to frontend format
-    const results = [];
-    for (const patientUid of uniquePatientUids) {
-      const patientCon = patientGroups[patientUid];
-      const latestCon = patientCon[0]; // sorted by createdAt descending, so first is latest
+    const results = paginatedStats.map(stat => {
+      const patientUid = stat._id;
+      const latestCon = stat.lastConsultation;
       const dbPatient = patientMap[patientUid];
 
       const name = dbPatient ? dbPatient.name : (latestCon.patientName || "Unknown Patient");
       const initials = name ? name.split(" ").map(n => n[0]).join("").toUpperCase() : "PT";
 
-      // Calculate age from dob (format e.g. YYYY-MM-DD or standard date)
+      // Calculate age from dob
       let age = 28; // fallback
       if (dbPatient && dbPatient.dob) {
         const birthDate = new Date(dbPatient.dob);
@@ -252,7 +294,7 @@ router.get("/my/patients", verifyToken, async (req, res) => {
         }
       }
 
-      results.push({
+      return {
         id: latestCon.id || `pt_${patientUid}`,
         patientUid: patientUid,
         name: name,
@@ -264,14 +306,20 @@ router.get("/my/patients", verifyToken, async (req, res) => {
         consultationDuration: latestCon.duration || "10 mins",
         prescriptionIssued: prescriptionPatientUids.has(patientUid) || !!latestCon.prescriptionId,
         notes: latestCon.summary || "No clinical notes entered.",
-      });
-    }
+      };
+    });
 
-    res.json(results);
+    res.json({
+      patients: results,
+      total,
+      page: Number(page),
+      totalPages: Math.ceil(total / limit)
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // POST /api/doctors/sync - Requires Auth (Auto-create on first login/registration)
 router.post("/sync", verifyToken, async (req, res) => {

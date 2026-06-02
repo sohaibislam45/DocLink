@@ -80,8 +80,8 @@ router.post("/join", verifyToken, async (req, res) => {
     });
 
     // 3. Calculate estimatedWaitMins
-    // Simple logic: each patient ahead adds ~10 mins
-    const estimatedWaitMins = count * (Math.floor(Math.random() * 8) + 8);
+    // Base: 6 mins per person ahead
+    const estimatedWaitMins = count * 6;
 
     // 4. Create entry
     const newEntry = new QueueEntry({
@@ -118,15 +118,18 @@ router.delete("/leave", verifyToken, async (req, res) => {
     entry.status = "left";
     await entry.save();
 
-    // Recalculate positions for remaining entries
-    await QueueEntry.updateMany(
-      { 
-        doctorId, 
-        position: { $gt: removedPosition }, 
-        status: { $in: ["waiting", "called"] } 
-      },
-      { $inc: { position: -1 } }
-    );
+    // Recalculate positions and wait times for remaining entries
+    const remainingEntries = await QueueEntry.find({
+      doctorId,
+      position: { $gt: removedPosition },
+      status: { $in: ["waiting", "called"] }
+    });
+
+    for (const entry of remainingEntries) {
+      entry.position -= 1;
+      entry.estimatedWaitMins = (entry.position - 1) * 6;
+      await entry.save();
+    }
 
     res.json({ message: "Left queue successfully" });
   } catch (error) {

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { intakeSchema } from '../../schemas/intakeSchema';
+import { useAuth } from '../../context/AuthContext';
 import {
   Dialog,
   DialogContent,
@@ -9,6 +10,13 @@ import {
   DialogTitle,
   DialogDescription,
 } from '../ui/Dialog';
+import { 
+  Select, 
+  SelectTrigger, 
+  SelectValue, 
+  SelectContent, 
+  SelectItem 
+} from '../ui/Select';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { cn } from '../../lib/utils';
@@ -27,6 +35,7 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchPublicSettings } from '../../api/admin';
 
 const IntakeFormDialog = ({ open, onClose, doctor }) => {
+  const { user } = useAuth();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -57,7 +66,7 @@ const IntakeFormDialog = ({ open, onClose, doctor }) => {
       setError(null);
       setLoading(false);
       reset({
-        patientName: '',
+        patientName: user?.displayName || user?.email?.split('@')[0] || '',
         reason: '',
       });
     }
@@ -170,18 +179,51 @@ const IntakeFormDialog = ({ open, onClose, doctor }) => {
                   )}
                 </div>
 
-                {/* Reason for Visit textarea */}
+                {/* Common Symptoms Select Box */}
+                <div className="space-y-3">
+                  <label className="flex items-center gap-2 text-xs font-semibold text-text-primary tracking-wide uppercase">
+                    <AlertCircle className="w-3.5 h-3.5 text-blue-500" />
+                    Select Common Symptom
+                  </label>
+                  <Select
+                    onValueChange={(val) => {
+                      const currentReason = reasonValue.trim();
+                      if (val === "None") return;
+                      const updated = currentReason 
+                        ? `${val}, ${currentReason}`
+                        : val;
+                      reset({ ...watch(), reason: updated });
+                    }}
+                  >
+                    <SelectTrigger className="bg-background-primary border-border/40 focus:ring-blue-500/20">
+                      <SelectValue placeholder="Choose a common symptom..." />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background-secondary border-border/40">
+                      {[
+                        "Fever", "Cough", "Headache", "Sore Throat", 
+                        "Body Ache", "Fatigue", "Nausea", "Dizziness", 
+                        "Chest Pain", "Breathing Issue"
+                      ].map((symptom) => (
+                        <SelectItem key={symptom} value={symptom}>
+                          {symptom}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Symptom Description / Others textarea */}
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-xs font-semibold text-text-primary tracking-wide uppercase">
                     <FileText className="w-3.5 h-3.5 text-blue-500" />
-                    Symptom Description / Reason
+                    Detailed Description / Others
                   </label>
                   <textarea
                     className={cn(
-                      "flex min-h-[110px] w-full rounded-xl border border-border/40 bg-background-primary px-3 py-2.5 text-sm ring-offset-background placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 resize-none text-text-primary transition-all",
+                      "flex min-h-[100px] w-full rounded-xl border border-border/40 bg-background-primary px-3 py-2.5 text-sm ring-offset-background placeholder:text-text-muted focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 resize-none text-text-primary transition-all",
                       errors.reason && "border-red-500/50 focus-visible:ring-red-500"
                     )}
-                    placeholder="What symptoms are you experiencing? E.g. high fever, cough, chest discomfort..."
+                    placeholder="Details about your symptoms or other concerns..."
                     maxLength={maxChars}
                     {...register('reason')}
                   />

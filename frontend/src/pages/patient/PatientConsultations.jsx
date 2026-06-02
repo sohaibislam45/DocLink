@@ -8,6 +8,8 @@ import { Button } from "../../components/ui/Button";
 import { Skeleton } from "../../components/ui/Skeleton";
 import { cn } from "../../lib/utils";
 import { Avatar, AvatarImage, AvatarFallback } from "../../components/ui/Avatar";
+import Pagination from "../../components/common/Pagination";
+
 
 const ConsultationCard = ({ consultation }) => {
   const doctorInitials = consultation.doctorInitials || (consultation.doctorName ? consultation.doctorName.replace("Dr. ", "").split(" ").map(n => n[0]).join("").toUpperCase() : "DR");
@@ -77,21 +79,27 @@ const PatientConsultations = () => {
   const [consultations, setConsultations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
 
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true);
-        const data = await fetchMyConsultations();
-        setConsultations(data);
+        const data = await fetchMyConsultations({ page, limit: 10 });
+        setConsultations(data.consultations || []);
+        setTotal(data.total || 0);
       } catch (err) {
         setError(err.message);
       } finally {
         setLoading(false);
       }
     };
-    loadData();
-  }, []);
+    if (activeTab === "past") {
+      loadData();
+    }
+  }, [page, activeTab]);
+
 
   const tabs = [
     { id: "past", label: "Past Sessions", icon: Lucide.History },
@@ -158,7 +166,17 @@ const PatientConsultations = () => {
                 No consultation history found.
               </div>
             )}
+
+            {activeTab === "past" && consultations.length > 0 && (
+              <Pagination 
+                page={page} 
+                total={total} 
+                limit={10} 
+                onPageChange={setPage} 
+              />
+            )}
           </motion.div>
+
         ) : (
           <motion.div
             key="queue"

@@ -10,7 +10,7 @@ export default function AdminPayments() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-payments", page, statusFilter],
-    queryFn: () => fetchAdminPayments({ page, limit: 10, status: statusFilter }),
+    queryFn: () => fetchAdminPayments({ page, limit: 20, status: statusFilter }),
   });
 
   return (
@@ -105,12 +105,14 @@ export default function AdminPayments() {
         </table>
       </div>
 
-      <Pagination 
-        page={page} 
-        total={data?.total || 0} 
-        limit={10} 
-        onPageChange={setPage} 
-      />
+      {data?.total > 20 && (
+        <Pagination 
+          page={page} 
+          total={data?.total || 0} 
+          limit={20} 
+          onPageChange={setPage} 
+        />
+      )}
     </div>
   );
 }

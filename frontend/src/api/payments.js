@@ -22,9 +22,12 @@ export const verifyPayment = (sessionId) => {
  * Retrieves the logged-in user's payment history.
  * @returns {Promise<Array<Object>>}
  */
-export const fetchMyPayments = () => {
-  return axiosClient.get("/payments/my");
+export const fetchMyPayments = ({ page = 1, limit = 10 } = {}) => {
+  return axiosClient.get("/payments/my", {
+    params: { page, limit }
+  });
 };
+
 
 /**
  * Cancels a pending or failed payment.

@@ -7,6 +7,10 @@ const router = express.Router();
 const prescriptionSchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true },
   patientUid: { type: String, required: true },  // Firebase UID
+  patientName: { type: String },
+  age: { type: String },
+  gender: { type: String },
+  weight: { type: String },
   doctorId: { type: String, required: true },
   doctorName: { type: String, required: true },
   doctorInitials: { type: String },
@@ -20,6 +24,7 @@ const prescriptionSchema = new mongoose.Schema({
     duration: String,
   }],
   notes: { type: String, default: "" },
+
   valid: { type: Boolean, default: true },
 }, { timestamps: true });
 
@@ -28,14 +33,30 @@ const Prescription = mongoose.model("Prescription", prescriptionSchema);
 // GET /api/prescriptions/my - Requires Auth
 router.get("/my", verifyToken, async (req, res) => {
   try {
-    const prescriptions = await Prescription.find({
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (page - 1) * limit;
+
+    const query = {
       $or: [{ patientUid: req.user.uid }, { doctorId: req.user.uid }]
-    }).sort({ createdAt: -1 });
-    res.json(prescriptions);
+    };
+
+    const total = await Prescription.countDocuments(query);
+    const prescriptions = await Prescription.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(Number(limit));
+
+    res.json({
+      prescriptions,
+      total,
+      page: Number(page),
+      totalPages: Math.ceil(total / limit)
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // POST /api/prescriptions - Requires Auth
 router.post("/", verifyToken, async (req, res) => {

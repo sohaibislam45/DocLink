@@ -56,12 +56,39 @@ const DoctorOverview = () => {
     { icon: Lucide.Users, label: "Patients in Queue", value: waitingPatients.length.toString(), color: "bg-blue-500/10 text-blue-500" },
     { icon: Lucide.Activity, label: "Today's Consultations", value: isDashboardLoading ? "..." : (dashboardData?.stats?.todayConsultations ?? 0).toString(), color: "bg-emerald-500/10 text-emerald-500" },
     { icon: Lucide.Clock, label: "Avg. Wait Time", value: isDashboardLoading ? "..." : `${dashboardData?.stats?.avgWaitTime ?? 15} min`, color: "bg-amber-500/10 text-amber-500" },
-    { icon: Lucide.Star, label: "Patient Rating", value: isDashboardLoading ? "..." : (dashboardData?.stats?.rating ?? 5.0).toFixed(1), color: "bg-purple-500/10 text-purple-500" },
+    { icon: Lucide.TrendingUp, label: "Monthly Revenue", value: isDashboardLoading ? "..." : `৳${(dashboardData?.stats?.monthlyRevenue ?? 0).toLocaleString()}`, color: "bg-purple-500/10 text-purple-500" },
   ];
 
   return (
     <div className="space-y-8">
+      {/* Verification Warning Banner */}
+      {!isDashboardLoading && dashboardData?.doctor && !dashboardData.doctor.verified && (
+        <motion.div
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: "auto", opacity: 1 }}
+          className="overflow-hidden"
+        >
+          <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
+                <Lucide.AlertTriangle className="w-5 h-5 text-amber-500" />
+              </div>
+              <div>
+                <h4 className="text-amber-500 font-bold text-sm">Account Verification Required</h4>
+                <p className="text-text-secondary text-xs">
+                  Your profile is currently unverified. To appear in search results and start accepting patients, please complete your verification.
+                </p>
+              </div>
+            </div>
+            <Button size="sm" variant="outline" className="border-amber-500/50 text-amber-500 hover:bg-amber-500 hover:text-white shrink-0 h-9 rounded-xl text-xs font-bold" asChild>
+              <Link to="/doctor/availability">Verify Now</Link>
+            </Button>
+          </div>
+        </motion.div>
+      )}
+
       {/* Welcome Header */}
+
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-text-primary">Welcome back, {dashboardData?.doctor?.name || user?.displayName || "Doctor"}</h2>

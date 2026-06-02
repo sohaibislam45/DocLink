@@ -128,15 +128,18 @@ export const initSocket = (io) => {
           console.error("Error creating Consultation document on queue:done:", consultationErr);
         }
 
-        // Recalculate positions for remaining patients
-        await QueueEntry.updateMany(
-          { 
-            doctorId, 
-            position: { $gt: donePosition }, 
-            status: { $in: ["waiting", "called"] } 
-          },
-          { $inc: { position: -1 } }
-        );
+        // Recalculate positions and wait times for remaining patients
+        const remainingEntries = await QueueEntry.find({
+          doctorId,
+          position: { $gt: donePosition },
+          status: { $in: ["waiting", "called", "in-consultation"] }
+        });
+
+        for (const remEntry of remainingEntries) {
+          remEntry.position -= 1;
+          remEntry.estimatedWaitMins = (remEntry.position - 1) * 6;
+          await remEntry.save();
+        }
 
         const queue = await getActiveQueue(doctorId);
         io.to(room).emit("queue:updated", queue);
@@ -171,17 +174,21 @@ export const initSocket = (io) => {
         const maxPosition = maxEntry ? maxEntry.position : oldPosition;
 
         if (maxPosition > oldPosition) {
-           // Shift down entries between skipped position and end
-          await QueueEntry.updateMany(
-            { 
-              doctorId, 
-              position: { $gt: oldPosition, $lte: maxPosition }, 
-              status: "waiting" 
-            },
-            { $inc: { position: -1 } }
-          );
+            // Shift down entries between skipped position and end
+            const shiftedEntries = await QueueEntry.find({
+              doctorId,
+              position: { $gt: oldPosition, $lte: maxPosition },
+              status: "waiting"
+            });
+
+            for (const shiftEntry of shiftedEntries) {
+              shiftEntry.position -= 1;
+              shiftEntry.estimatedWaitMins = (shiftEntry.position - 1) * 6;
+              await shiftEntry.save();
+            }
 
           entry.position = maxPosition;
+          entry.estimatedWaitMins = (maxPosition - 1) * 6;
           await entry.save();
         }
 

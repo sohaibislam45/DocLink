@@ -185,9 +185,8 @@ router.get("/verify", verifyToken, async (req, res) => {
 
             const position = activeEntries + 1;
             
-            // Assign random wait time per patient ahead (8–15 mins)
-            const estimatedWaitMins = Array.from({ length: activeEntries })
-              .reduce((sum) => sum + Math.floor(Math.random() * 8) + 8, 0);
+            // Assign wait time: 6 mins per patient ahead
+            const estimatedWaitMins = activeEntries * 6;
 
             await QueueEntry.create({
               doctorId: payment.doctorId,
@@ -240,13 +239,28 @@ router.get("/verify", verifyToken, async (req, res) => {
 // --- REST ROUTE: GET PATIENT PAYMENT HISTORY ---
 router.get("/my", verifyToken, async (req, res) => {
   try {
-    const payments = await Payment.find({ patientUid: req.user.uid })
-      .sort({ createdAt: -1 });
-    res.json(payments);
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (page - 1) * limit;
+
+    const query = { patientUid: req.user.uid };
+    
+    const total = await Payment.countDocuments(query);
+    const payments = await Payment.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(Number(limit));
+
+    res.json({
+      payments,
+      total,
+      page: Number(page),
+      totalPages: Math.ceil(total / limit)
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // --- REST ROUTE: CANCEL/DELETE PAYMENT (only if pending or failed) ---
 router.post("/:paymentId/cancel", verifyToken, async (req, res) => {
@@ -318,9 +332,8 @@ export const handleWebhook = async (req, res) => {
 
       const position = activeEntries + 1;
 
-      // Assign random wait time per patient ahead (8–15 mins)
-      const estimatedWaitMins = Array.from({ length: activeEntries })
-        .reduce((sum) => sum + Math.floor(Math.random() * 8) + 8, 0);
+      // Assign wait time: 6 mins per patient ahead
+      const estimatedWaitMins = activeEntries * 6;
 
       const newEntry = await QueueEntry.create({
         doctorId,

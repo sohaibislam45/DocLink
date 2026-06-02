@@ -2,13 +2,9 @@ import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchAdminStats } from "../../api/admin.js";
 import { motion } from "framer-motion";
-import { UserCheck, Users, CreditCard } from "lucide-react";
+import { UserCheck, Users, CreditCard, TrendingUp, Landmark } from "lucide-react";
 
-const TakaSign = ({ className }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" className={className}>
-    <text x="12" y="17" fill="currentColor" fontSize="16" fontFamily="sans-serif" fontWeight="bold" textAnchor="middle">৳</text>
-  </svg>
-);
+const fmt = (cents) => `৳ ${(cents / 100).toFixed(2)}`;
 
 export default function AdminOverview() {
   const { data: stats, isLoading } = useQuery({
@@ -17,13 +13,13 @@ export default function AdminOverview() {
   });
 
   const cards = [
-    { label: "Total Doctors",  value: stats?.totalDoctors,  icon: UserCheck,  color: "text-blue-500",    bg: "bg-blue-500/10" },
-    { label: "Total Patients", value: stats?.totalPatients, icon: Users,       color: "text-[#12CB8E]",   bg: "bg-[#12CB8E]/10" },
-    { label: "Total Payments", value: stats?.totalPayments, icon: CreditCard,  color: "text-amber-500",   bg: "bg-amber-500/10" },
-    { label: "Total Revenue",  value: stats?.totalRevenue
-        ? `৳ ${(stats.totalRevenue / 100).toFixed(2)}`
-        : "৳0.00",               icon: TakaSign, color: "text-red-500", bg: "bg-red-500/10" },
+    { label: "Total Doctors",      value: stats?.totalDoctors,       icon: UserCheck,  color: "text-blue-500",    bg: "bg-blue-500/10"   },
+    { label: "Total Patients",     value: stats?.totalPatients,      icon: Users,      color: "text-[#12CB8E]",   bg: "bg-[#12CB8E]/10"  },
+    { label: "Total Payments",     value: stats?.totalPayments,      icon: CreditCard, color: "text-amber-500",   bg: "bg-amber-500/10"  },
+    { label: "Total Transactions",      value: stats?.totalRevenue  != null ? fmt(stats.totalRevenue)     : "৳0.00", icon: TrendingUp, color: "text-red-500",   bg: "bg-red-500/10"  },
+    { label: "Platform Fee Earned",value: stats?.totalPlatformFee != null ? fmt(stats.totalPlatformFee) : "৳0.00", icon: Landmark,   color: "text-violet-500", bg: "bg-violet-500/10" },
   ];
+
 
   return (
     <div>
@@ -35,7 +31,7 @@ export default function AdminOverview() {
       </p>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 xl:grid-cols-5 gap-4 mb-8">
         {cards.map(({ label, value, icon: Icon, color, bg }, i) => (
           <motion.div
             key={label}

@@ -18,4 +18,7 @@ export const doctorProfileSchema = z.object({
   bio: z.string().max(500, "Bio must be less than 500 characters").optional().or(z.literal("")),
   education: z.string().optional().or(z.literal("")),
   experienceDetails: z.string().optional().or(z.literal("")),
+  bmdcNumber: z.string().min(3, "BM&DC Registration Number is required").optional().or(z.literal("")),
+  doctorType: z.string().min(1, "Doctor type is required").optional().or(z.literal("")),
 });
+

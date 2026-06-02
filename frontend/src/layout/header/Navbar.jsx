@@ -8,6 +8,7 @@ import { cn } from '../../lib/utils';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { Avatar, AvatarImage, AvatarFallback } from '../../components/ui/Avatar';
+import useDoctorOnlineStatus from '../../hooks/useDoctorOnlineStatus';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -15,6 +16,24 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator
 } from '../../components/ui/DropdownMenu';
+
+const DoctorStatusToggle = () => {
+  const { isOnline, toggleOnline } = useDoctorOnlineStatus();
+  return (
+    <button
+      onClick={toggleOnline}
+      className={cn(
+        "flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-bold transition-all border",
+        isOnline
+          ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/20 shadow-sm shadow-emerald-500/5"
+          : "bg-slate-500/10 text-slate-500 border-slate-500/20"
+      )}
+    >
+      <span className={cn("w-1.5 h-1.5 rounded-full", isOnline ? "bg-emerald-500 animate-pulse" : "bg-slate-400")} />
+      {isOnline ? "Online" : "Offline"}
+    </button>
+  );
+};
 
 const Navbar = () => {
   const location = useLocation();
@@ -38,6 +57,36 @@ const Navbar = () => {
     { name: 'How It Works', href: '/how-it-works' },
     { name: 'Pricing', href: '/pricing' },
   ];
+
+  const dashboardLinks = {
+    admin: [
+      { name: "Overview", href: "/admin/dashboard" },
+      { name: "Manage Doctors", href: "/admin/doctors" },
+      { name: "Manage Patients", href: "/admin/patients" },
+      { name: "Payments", href: "/admin/payments" },
+      { name: "Settings", href: "/admin/settings" },
+    ],
+    doctor: [
+      { name: "Overview", href: "/doctor/dashboard" },
+      { name: "Queue", href: "/doctor/queue" },
+      { name: "Patient Records", href: "/doctor/patients" },
+      { name: "Prescription", href: "/doctor/prescriptions/new" },
+      { name: "Availability", href: "/doctor/availability" },
+    ],
+    patient: [
+      { name: "Overview", href: "/patient/dashboard" },
+      { name: "Payments", href: "/patient/payments" },
+      { name: "Consultations", href: "/patient/consultations" },
+      { name: "Prescriptions", href: "/patient/prescriptions" },
+      { name: "Profile", href: "/patient/profile" },
+    ]
+  };
+
+  const isDashboard = location.pathname.startsWith('/admin') || 
+                      location.pathname.startsWith('/doctor') || 
+                      location.pathname.startsWith('/patient');
+
+  const currentNavLinks = isDashboard && role ? dashboardLinks[role] : navLinks;
 
   const displayName = role === 'doctor' 
     ? (profile?.name || user?.displayName) 
@@ -167,32 +216,55 @@ const Navbar = () => {
           animate={{ opacity: 1, height: 'auto' }}
           className="md:hidden bg-background-secondary border-b border-border px-6 py-4 flex flex-col gap-4"
         >
-          {navLinks.map((link) => (
+          {/* Always show Home if in dashboard, else show default links */}
+          {isDashboard && (
+            <Link
+              to="/"
+              className="nav-link py-2 flex items-center gap-2"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              <Lucide.Home className="w-4 h-4" />
+              Home
+            </Link>
+          )}
+
+          {currentNavLinks.map((link) => (
             <Link
               key={link.name}
               to={link.href}
-              className="nav-link py-2"
+              className={cn(
+                "nav-link py-2 flex items-center gap-2",
+                location.pathname === link.href && "text-accent-primary"
+              )}
               onClick={() => setIsMobileMenuOpen(false)}
             >
+              {isDashboard && <Lucide.ChevronRight className="w-3 h-3 opacity-50" />}
               {link.name}
             </Link>
           ))}
           <div className="flex flex-col gap-2 pt-2 border-t border-border">
             {user ? (
               <>
-                <div className="flex items-center gap-3 px-4 py-2 bg-background-tertiary/50 rounded-xl mb-2">
-                  <Avatar className="w-10 h-10">
-                    <AvatarImage src={photoURL} />
-                    <AvatarFallback className="bg-accent-primary text-white">
-                      {initials}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-bold text-text-primary">
-                      {displayName}
-                    </span>
-                    <span className="text-xs text-text-secondary">{user.email}</span>
+                <div className="flex items-center justify-between px-4 py-2 bg-background-tertiary/50 rounded-xl mb-2">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="w-10 h-10">
+                      <AvatarImage src={photoURL} />
+                      <AvatarFallback className="bg-accent-primary text-white">
+                        {initials}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold text-text-primary">
+                        {displayName}
+                      </span>
+                      <span className="text-xs text-text-secondary truncate max-w-[150px]">{user.email}</span>
+                    </div>
                   </div>
+                  
+                  {/* Doctor Online Toggle in Navbar */}
+                  {role === 'doctor' && (
+                    <DoctorStatusToggle />
+                  )}
                 </div>
                 <Button 
                   variant="ghost" 

@@ -39,6 +39,7 @@ router.get("/stats", verifyAdmin, async (req, res) => {
     const [
       totalDoctors, totalPatients,
       totalPayments, revenueResult,
+      platformFeeResult,
       pendingDoctors
     ] = await Promise.all([
       Doctor.countDocuments(),
@@ -48,16 +49,22 @@ router.get("/stats", verifyAdmin, async (req, res) => {
         { $match: { status: "completed" } },
         { $group: { _id: null, total: { $sum: "$totalAmount" } } }
       ]),
+      Payment.aggregate([
+        { $match: { status: "completed" } },
+        { $group: { _id: null, total: { $sum: "$platformFee" } } }
+      ]),
       Doctor.countDocuments({ verified: false }),
     ]);
 
     const totalRevenue = revenueResult[0]?.total || 0;
+    const totalPlatformFee = platformFeeResult[0]?.total || 0;
 
     res.json({
       totalDoctors,
       totalPatients,
       totalPayments,
       totalRevenue,         // in cents
+      totalPlatformFee,     // platform fee portion only
       pendingDoctors,
     });
   } catch (err) {
@@ -70,7 +77,7 @@ router.get("/stats", verifyAdmin, async (req, res) => {
 // GET /api/admin/doctors
 router.get("/doctors", verifyAdmin, async (req, res) => {
   try {
-    const { search = "", page = 1, limit = 10 } = req.query;
+    const { search = "", page = 1, limit = 20 } = req.query;
     const query = search
       ? { $or: [
           { name: { $regex: search, $options: "i" } },
@@ -239,7 +246,7 @@ router.delete("/patients/:uid", verifyAdmin, async (req, res) => {
 // GET /api/admin/payments
 router.get("/payments", verifyAdmin, async (req, res) => {
   try {
-    const { page = 1, limit = 10, status } = req.query;
+    const { page = 1, limit = 20, status } = req.query;
     const query = status ? { status } : {};
     const total = await Payment.countDocuments(query);
     const payments = await Payment.find(query)

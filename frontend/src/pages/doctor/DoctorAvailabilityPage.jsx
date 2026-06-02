@@ -58,6 +58,11 @@ const DoctorAvailabilityPage = () => {
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [photoFile, setPhotoFile] = useState(null);
+  const [docFile, setDocFile] = useState(null);
+  const [docPreview, setDocPreview] = useState(null);
+  const [docType, setDocType] = useState("Medical Practitioner");
+  const docInputRef = useRef(null);
+
 
   const {
     register,
@@ -70,14 +75,18 @@ const DoctorAvailabilityPage = () => {
     resolver: zodResolver(doctorProfileSchema),
     defaultValues: {
       fullName: user?.displayName || "",
-      phone: "+880 1712 345678",
-      specialty: "Cardiology",
-      experience: "8",
-      fee: "80",
+      phone: "",
+      specialty: "",
+      experience: "0",
+      fee: "0",
       bio: "",
       education: "",
       experienceDetails: "",
+      bmdcNumber: "",
+      doctorType: "",
     },
+
+
     mode: "onChange",
   });
 
@@ -103,7 +112,13 @@ const DoctorAvailabilityPage = () => {
             bio: doc.bio || "",
             education: doc.education || "",
             experienceDetails: doc.experienceDetails || "",
+            bmdcNumber: doc.bmdcNumber || "",
+            doctorType: doc.doctorType || "Medical Practitioner",
           });
+          if (doc.verificationDocument) {
+            setDocPreview(doc.verificationDocument);
+          }
+
         }
       } catch (error) {
         console.error("Failed to load doctor profile:", error);
@@ -134,6 +149,20 @@ const DoctorAvailabilityPage = () => {
     }
   };
 
+  const handleDocChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setDocFile(file);
+      // If it's an image, we can preview it
+      if (file.type.startsWith("image/")) {
+        setDocPreview(URL.createObjectURL(file));
+      } else {
+        setDocPreview(null);
+      }
+    }
+  };
+
+
   const saveAvailability = async () => {
     setIsSavingAvail(true);
     try {
@@ -151,8 +180,10 @@ const DoctorAvailabilityPage = () => {
     setIsSavingProfile(true);
     try {
       let avatarUrl = profile?.avatar;
-      let avatarUploadFailed = false;
+      let verificationDocUrl = profile?.verificationDocument;
+      let uploadFailed = false;
       
+      // Upload Avatar
       if (photoFile) {
         try {
           const formData = new FormData();
@@ -166,8 +197,25 @@ const DoctorAvailabilityPage = () => {
           avatarUrl = json.data.url;
         } catch (uploadError) {
           console.error("Avatar upload failed:", uploadError);
-          avatarUploadFailed = true;
-          // Continue saving the rest of the profile data
+          uploadFailed = true;
+        }
+      }
+
+      // Upload Verification Document
+      if (docFile) {
+        try {
+          const formData = new FormData();
+          formData.append("image", docFile);
+          const res = await fetch(
+            `https://api.imgbb.com/1/upload?key=92c4f48b8520017aa469eba82303d7c3`,
+            { method: "POST", body: formData }
+          );
+          const json = await res.json();
+          if (!json.success) throw new Error("Document upload failed");
+          verificationDocUrl = json.data.url;
+        } catch (uploadError) {
+          console.error("Document upload failed:", uploadError);
+          uploadFailed = true;
         }
       }
 
@@ -180,17 +228,20 @@ const DoctorAvailabilityPage = () => {
         bio: data.bio,
         education: data.education,
         experienceDetails: data.experienceDetails,
+        bmdcNumber: data.bmdcNumber,
+        doctorType: data.doctorType,
         avatar: avatarUrl,
+        verificationDocument: verificationDocUrl,
       };
       await updateDoctorProfile(payload);
       if (refreshProfile) refreshProfile();
       queryClient.invalidateQueries({ queryKey: ["doctor"] });
       queryClient.invalidateQueries({ queryKey: ["doctors"] });
       
-      if (avatarUploadFailed) {
-        showError("Profile saved, but avatar upload to ImgBB failed.", "Partial Success");
+      if (uploadFailed) {
+        showError("Profile saved, but some document uploads to ImgBB failed.", "Partial Success");
       } else {
-        showSuccess("Your profile has been saved successfully.", "Profile Updated!");
+        showSuccess("Your profile has been saved successfully. Admin will verify your registration soon.", "Profile Updated!");
       }
       reset(data);
     } catch (error) {
@@ -199,6 +250,7 @@ const DoctorAvailabilityPage = () => {
       setIsSavingProfile(false);
     }
   };
+
 
   const handleChangePassword = async () => {
     try {
@@ -420,8 +472,92 @@ const DoctorAvailabilityPage = () => {
                     {errors.fee && <p className="text-red-400 text-xs">{errors.fee.message}</p>}
                   </div>
                 </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-text-secondary font-medium uppercase tracking-wider">BM&DC Registration No.</label>
+                    <Input
+                      {...register("bmdcNumber")}
+                      placeholder="e.g. A-12345"
+                      className={cn("bg-background-tertiary border-border text-text-primary h-10", errors.bmdcNumber && "border-red-500/50")}
+                    />
+                    {errors.bmdcNumber && <p className="text-red-400 text-xs">{errors.bmdcNumber.message}</p>}
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-text-secondary font-medium uppercase tracking-wider">Doctor Type</label>
+                    <Controller
+                      name="doctorType"
+                      control={control}
+                      render={({ field }) => (
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <SelectTrigger className={cn("bg-background-tertiary border-border text-text-primary h-10", errors.doctorType && "border-red-500/50")}>
+                            <SelectValue placeholder="Select degree" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-background-secondary border-border text-text-primary">
+                            <SelectItem value="MBBS">MBBS</SelectItem>
+                            <SelectItem value="BDS">BDS</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    {errors.doctorType && <p className="text-red-400 text-xs">{errors.doctorType.message}</p>}
+                  </div>
+                </div>
+
+                {/* Verification Document Upload */}
+                <div className="space-y-1.5 pt-2">
+                  <label className="text-xs text-text-secondary font-medium uppercase tracking-wider">Identification Document (NID/License)</label>
+                  <div 
+                    onClick={() => docInputRef.current.click()}
+                    className={cn(
+                      "group border-2 border-dashed border-border rounded-2xl p-6 flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-accent-primary/50 hover:bg-accent-primary/5 transition-all",
+                      docFile || docPreview ? "border-accent-primary/30 bg-accent-primary/5" : ""
+                    )}
+                  >
+                    <input 
+                      type="file" 
+                      ref={docInputRef} 
+                      onChange={handleDocChange} 
+                      accept="image/*,application/pdf" 
+                      className="hidden" 
+                    />
+                    
+                    {docPreview && !docFile ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="w-12 h-12 rounded-xl bg-accent-primary/20 flex items-center justify-center">
+                          <Lucide.FileCheck className="w-6 h-6 text-accent-primary" />
+                        </div>
+                        <p className="text-xs text-accent-primary font-medium">Document Already Uploaded</p>
+                        <p className="text-[10px] text-text-secondary">Click to update your verification document</p>
+                      </div>
+                    ) : docFile ? (
+                      <div className="flex flex-col items-center gap-2">
+                        {docFile.type.startsWith("image/") && docPreview ? (
+                          <img src={docPreview} alt="doc preview" className="w-20 h-20 object-cover rounded-lg border border-border" />
+                        ) : (
+                          <div className="w-12 h-12 rounded-xl bg-success/20 flex items-center justify-center">
+                            <Lucide.File className="w-6 h-6 text-success" />
+                          </div>
+                        )}
+                        <p className="text-xs text-text-primary font-medium truncate max-w-[200px]">{docFile.name}</p>
+                        <p className="text-[10px] text-success font-bold uppercase">Ready to Upload</p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="w-12 h-12 rounded-xl bg-background-tertiary flex items-center justify-center group-hover:scale-110 transition-transform">
+                          <Lucide.UploadCloud className="w-6 h-6 text-text-secondary" />
+                        </div>
+                        <div className="text-center">
+                          <p className="text-sm text-text-primary font-medium">Click to upload document</p>
+                          <p className="text-xs text-text-secondary">Support: Images (JPG, PNG) or PDF</p>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
                 <div className="space-y-1.5">
                   <label className="text-xs text-text-secondary font-medium">Bio / About (max 500)</label>
+
                   <textarea
                     {...register("bio")}
                     maxLength={500}

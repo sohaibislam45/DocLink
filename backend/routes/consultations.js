@@ -23,9 +23,18 @@ const Consultation = mongoose.model("Consultation", consultationSchema);
 // GET /api/consultations/my - Requires Auth
 router.get("/my", verifyToken, async (req, res) => {
   try {
-    const consultations = await Consultation.find({
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (page - 1) * limit;
+
+    const query = {
       $or: [{ patientUid: req.user.uid }, { doctorId: req.user.uid }]
-    }).sort({ createdAt: -1 });
+    };
+
+    const total = await Consultation.countDocuments(query);
+    const consultations = await Consultation.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(Number(limit));
 
     // Fetch doctor avatars
     const doctorIds = [...new Set(consultations.map(c => c.doctorId).filter(Boolean))];
@@ -41,11 +50,17 @@ router.get("/my", verifyToken, async (req, res) => {
       return obj;
     });
 
-    res.json(results);
+    res.json({
+      consultations: results,
+      total,
+      page: Number(page),
+      totalPages: Math.ceil(total / limit)
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // POST /api/consultations - Requires Auth
 router.post("/", verifyToken, async (req, res) => {

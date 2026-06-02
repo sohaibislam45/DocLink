@@ -13,6 +13,7 @@ import { Button } from "../../components/ui/Button";
 import { cn } from "../../lib/utils";
 import { fetchPatients } from "../../api/patients";
 import { useAuth } from "../../context/AuthContext";
+import Pagination from "../../components/common/Pagination";
 
 const DoctorPatientsPage = () => {
   const { user } = useAuth();
@@ -21,7 +22,8 @@ const DoctorPatientsPage = () => {
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [specialties, setSpecialties] = useState([]);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
 
   useEffect(() => {
     if (!user?.uid) return;
@@ -29,31 +31,22 @@ const DoctorPatientsPage = () => {
     const loadData = async () => {
       try {
         setLoading(true);
-        // Replace with actual API calls
-        const patientsData = await fetchPatients();
-        setPatients(patientsData || []);
-        
-        // Mocking fetching specialties from API
-        setSpecialties([
-          { id: 1, name: "Cardiology" },
-          { id: 2, name: "Dermatology" },
-          { id: 3, name: "Neurology" },
-          { id: 4, name: "Pediatrics" },
-          { id: 5, name: "Psychiatry" },
-          { id: 6, name: "Medicine" }
-        ]);
+        const data = await fetchPatients({ page, limit: 10 });
+        setPatients(data.patients || []);
+        setTotal(data.total || 0);
       } finally {
         setLoading(false);
       }
     };
     loadData();
-  }, [user?.uid]);
+  }, [user?.uid, page]);
 
   const filtered = patients.filter(
     (p) =>
       (p.name || "").toLowerCase().includes(query.toLowerCase()) ||
       (p.diagnosis || "").toLowerCase().includes(query.toLowerCase())
   );
+
 
   return (
     <div className="space-y-6">
@@ -156,6 +149,14 @@ const DoctorPatientsPage = () => {
           )}
         </AnimatePresence>
       </div>
+
+      <Pagination 
+        page={page} 
+        total={total} 
+        limit={10} 
+        onPageChange={setPage} 
+      />
+
 
       {/* Detail Dialog */}
       <Dialog open={!!selectedPatient} onOpenChange={(open) => !open && setSelectedPatient(null)}>

@@ -40,7 +40,7 @@ export default function AdminPatients() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-patients", search, page],
-    queryFn: () => fetchAdminPatients({ search, page, limit: 10 }),
+    queryFn: () => fetchAdminPatients({ search, page, limit: 20 }),
   });
 
   const { mutate: handleEdit, isPending: editPending } = useMutation({
@@ -164,12 +164,14 @@ export default function AdminPatients() {
         </table>
       </div>
 
-      <Pagination 
-        page={page} 
-        total={data?.total || 0} 
-        limit={10} 
-        onPageChange={setPage} 
-      />
+      {data?.total > 20 && (
+        <Pagination 
+          page={page} 
+          total={data?.total || 0} 
+          limit={20} 
+          onPageChange={setPage} 
+        />
+      )}
 
       <PatientModal 
         open={isModalOpen} 
