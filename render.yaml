@@ -5,7 +5,7 @@ services:
     plan: free
     buildCommand: npm install
     startCommand: npm start
-    rootDirectory: backend
+    rootDir: backend
     envVars:
       - key: NODE_VERSION
         value: 18
